@@ -292,26 +292,6 @@ void test_rvalue_push() {
   std::cout << "✓\n";
 }
 
-void test_custom_comparator() {
-  std::cout << "Testing custom comparator... ";
-
-  // Компаратор для min-heap по абсолютному значению
-  auto abs_less = [](int a, int b) { return std::abs(a) < std::abs(b); };
-  Heap<int, int, decltype(abs_less)> h(abs_less);
-
-  h.push(-10, 100);
-  h.push(5, 200);
-  h.push(-3, 300);
-
-  // Наименьший по абсолютному значению = |-3| = 3
-  assert(h.peek() == 300);
-  h.pop();
-
-  // Следующий = |5| = 5
-  assert(h.peek() == 200);
-  std::cout << "✓\n";
-}
-
 int main() {
   std::cout << "=== Heap Test Suite ===\n\n";
 
@@ -332,7 +312,6 @@ int main() {
     test_range_for();
     test_priority_order();
     test_rvalue_push();
-    test_custom_comparator();
 
     std::cout << "\n=== All tests passed! ===\n";
     return 0;

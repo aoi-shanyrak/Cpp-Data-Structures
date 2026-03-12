@@ -35,7 +35,7 @@ class Vector {
   void destroy_elements();
 
  public:
-  explicit Vector(size_t n, const T& value = T(), const A& alloc = A());
+  explicit Vector(typename A::size_type n, const T& value = T(), const A& alloc = A());
 
   Vector(const Vector& other);
   Vector& operator=(const Vector& other);
@@ -45,11 +45,11 @@ class Vector {
 
   ~Vector() { destroy_elements(); }
 
-  size_t size() const { return vb.space - vb.elem; }
-  size_t capacity() const { return vb.end - vb.elem; }
+  typename A::size_type size() const { return vb.space - vb.elem; }
+  typename A::size_type capacity() const { return vb.end - vb.elem; }
 
-  T& operator[](size_t i) { return vb.elem[i]; }
-  const T& operator[](size_t i) const { return vb.elem[i]; }
+  T& operator[](typename A::size_type i) { return vb.elem[i]; }
+  const T& operator[](typename A::size_type i) const { return vb.elem[i]; }
 
   using iterator = T*;
   using const_iterator = const T*;
@@ -59,9 +59,9 @@ class Vector {
   iterator end() { return vb.space; }
   const_iterator end() const { return vb.space; }
 
-  void reserve(size_t new_capacity);
+  void reserve(typename A::size_type new_capacity);
 
-  void resize(size_t new_size, T = {});
+  void resize(typename A::size_type new_size, T = {});
   void clear() { resize(0); }
 
   void push_back(const T& value);
@@ -77,7 +77,7 @@ void Vector<T, A>::destroy_elements() {
 }
 
 template <class T, class A>
-Vector<T, A>::Vector(size_t n, const T& value, const A& alloc) : vb {alloc, n} {
+Vector<T, A>::Vector(typename A::size_type n, const T& value, const A& alloc) : vb {alloc, n} {
   std::uninitialized_fill(vb.elem, vb.space, value);
 }
 
@@ -112,8 +112,8 @@ Vector<T, A>& Vector<T, A>::operator=(const Vector& a) {
   }
   if (this == &a) return *this;
 
-  size_t sz = size();
-  size_t asz = a.size();
+  typename A::size_type sz = size();
+  typename A::size_type asz = a.size();
   vb.alloc = a.vb.alloc;
   if (asz <= sz) {
     std::copy(a.begin(), a.end(), vb.elem);
@@ -129,7 +129,7 @@ Vector<T, A>& Vector<T, A>::operator=(const Vector& a) {
 }
 
 template <class T, class A>
-void Vector<T, A>::reserve(size_t new_capacity) {
+void Vector<T, A>::reserve(typename A::size_type new_capacity) {
   if (new_capacity <= capacity()) return;
 
   Vector_base<T, A> new_vb {vb.alloc, new_capacity};
@@ -140,7 +140,7 @@ void Vector<T, A>::reserve(size_t new_capacity) {
 }
 
 template <class T, class A>
-void Vector<T, A>::resize(size_t new_size, T value) {
+void Vector<T, A>::resize(typename A::size_type new_size, T value) {
   reserve(new_size);
   if (size() < new_size) {
     std::uninitialized_fill(vb.elem + size(), vb.elem + new_size, value);
