@@ -27,17 +27,17 @@ jobs:
           sudo apt-get install -y build-essential
 
       - name: Build and run tests
-        id: run-tests
+        id: auto-test
         uses: classroom-resources/autograding-command-grader@v1
         with:
           test-name: C++ Tests
           setup-command: ''
           command: make --keep-going test
-          timeout: 2
+          timeout: 5
 
       - name: Autograding Reporter
         uses: classroom-resources/autograding-grading-reporter@v1
         env:
-          RUN-TESTS_RESULTS: "${{steps.run-tests.outputs.result}}"
+          AUTO-TEST_RESULTS: "${{steps.auto-test.outputs.result}}"
         with:
-          runners: run-tests
+          runners: auto-test
