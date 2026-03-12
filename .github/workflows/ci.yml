@@ -8,6 +8,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  checks: write
+  actions: read
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,6 +27,17 @@ jobs:
           sudo apt-get install -y build-essential
 
       - name: Build and run tests
-        run: |
-          make clean
-          make test
+        id: run-tests
+        uses: classroom-resources/autograding-command-grader@v1
+        with:
+          test-name: C++ Tests
+          setup-command: ''
+          command: make --keep-going test
+          timeout: 2
+
+      - name: Autograding Reporter
+        uses: classroom-resources/autograding-grading-reporter@v1
+        env:
+          RUN-TESTS_RESULTS: "${{steps.run-tests.outputs.result}}"
+        with:
+          runners: run-tests
