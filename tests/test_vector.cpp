@@ -9,7 +9,7 @@ void test_constructor() {
   Vector<int> v(5, 42);
   assert(v.size() == 5);
   assert(v.capacity() >= 5);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_copy_constructor() {
@@ -18,7 +18,7 @@ void test_copy_constructor() {
   Vector<int> v2(v1);
   assert(v2.size() == 3);
   assert(v1.size() == v2.size());
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_move_constructor() {
@@ -28,7 +28,7 @@ void test_move_constructor() {
   Vector<int> v2(std::move(v1));
   assert(v2.size() == old_size);
   assert(v1.size() == 0);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_copy_assignment() {
@@ -37,7 +37,7 @@ void test_copy_assignment() {
   Vector<int> v2(1, 50);
   v2 = v1;
   assert(v2.size() == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_move_assignment() {
@@ -47,7 +47,7 @@ void test_move_assignment() {
   size_t old_size = v1.size();
   v2 = std::move(v1);
   assert(v2.size() == old_size);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_push_back() {
@@ -57,7 +57,7 @@ void test_push_back() {
   v.push_back(2);
   v.push_back(3);
   assert(v.size() == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_pop_back() {
@@ -66,7 +66,7 @@ void test_pop_back() {
   size_t old_size = v.size();
   v.pop_back();
   assert(v.size() == old_size - 1);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_reserve() {
@@ -75,7 +75,7 @@ void test_reserve() {
   v.reserve(10);
   assert(v.capacity() >= 10);
   assert(v.size() == 2);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_resize() {
@@ -85,7 +85,7 @@ void test_resize() {
   assert(v.size() == 10);
   v.resize(3);
   assert(v.size() == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_clear() {
@@ -93,7 +93,7 @@ void test_clear() {
   Vector<int> v(10, 42);
   v.clear();
   assert(v.size() == 0);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_with_strings() {
@@ -101,7 +101,7 @@ void test_with_strings() {
   Vector<std::string> v(3, "hello");
   v.push_back("world");
   assert(v.size() == 4);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_iterators() {
@@ -112,7 +112,7 @@ void test_iterators() {
     count++;
   }
   assert(count == 5);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_range_for() {
@@ -123,7 +123,7 @@ void test_range_for() {
     sum += val;
   }
   assert(sum == 21);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 int main() {
@@ -147,10 +147,10 @@ int main() {
     std::cout << "\n=== All tests passed! ===\n";
     return 0;
   } catch (const std::exception& e) {
-    std::cerr << "\n✗ Test failed with exception: " << e.what() << "\n";
+    std::cerr << "\n Test failed with exception: " << e.what() << "\n";
     return 1;
   } catch (...) {
-    std::cerr << "\n✗ Test failed with unknown exception\n";
+    std::cerr << "\n Test failed with unknown exception\n";
     return 1;
   }
 }

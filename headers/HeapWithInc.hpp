@@ -3,22 +3,23 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace details {
 
-inline size_t HeapLeftChild(size_t index) {
-  return 2 * index + 1;
-}
+  inline size_t HeapLeftChild(size_t index) {
+    return 2 * index + 1;
+  }
 
-inline size_t HeapRightChild(size_t index) {
-  return 2 * index + 2;
-}
+  inline size_t HeapRightChild(size_t index) {
+    return 2 * index + 2;
+  }
 
-inline size_t HeapParent(size_t index) {
-  return (index - 1) / 2;
-}
+  inline size_t HeapParent(size_t index) {
+    return (index - 1) / 2;
+  }
 
 }
 
@@ -74,10 +75,10 @@ class HeapWithInc {
   }
 
   void increasePriorityByValue(T value, P newPriority) {
-    if (indexMap.empty() || value >= indexMap.size()) {
+    if (!isValueIndexValid(value)) {
       throw std::runtime_error("Heap::increasePriorityByValue(): indexMap not initialized");
     }
-    size_t heapIndex = indexMap[value];
+    size_t heapIndex = indexMap[static_cast<size_t>(value)];
     if (heapIndex == static_cast<size_t>(-1)) {
       throw std::runtime_error("Heap::increasePriorityByValue(): value not in heap");
     }
@@ -93,8 +94,8 @@ class HeapWithInc {
   }
 
   bool containsValue(T value) const {
-    if (indexMap.empty() || value >= indexMap.size()) return false;
-    return indexMap[value] != static_cast<size_t>(-1);
+    if (!isValueIndexValid(value)) return false;
+    return indexMap[static_cast<size_t>(value)] != static_cast<size_t>(-1);
   }
 
   iterator begin() noexcept { return data.begin(); }
@@ -110,6 +111,18 @@ class HeapWithInc {
   Compare comp;
   std::vector<std::pair<P, T>, Allocator> data;
   std::vector<size_t> indexMap;
+
+  bool isValueIndexValid(T value) const {
+    if (indexMap.empty()) {
+      return false;
+    }
+    if constexpr (std::is_signed_v<T>) {
+      if (value < 0) {
+        return false;
+      }
+    }
+    return static_cast<size_t>(value) < indexMap.size();
+  }
 
   void swapIndices(size_t i, size_t j) {
     std::swap(data[i], data[j]);

@@ -9,12 +9,12 @@ void test_constructor() {
   Heap<int> h;
   assert(h.isEmpty());
   assert(h.size() == 0);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_max_heap_basic() {
   std::cout << "Testing max heap basic operations... ";
-  Heap<int> h;  // По умолчанию max-heap (std::greater)
+  Heap<int> h;  // max-heap (std::greater)
 
   h.push(5, 100);
   h.push(3, 200);
@@ -23,42 +23,42 @@ void test_max_heap_basic() {
   assert(h.size() == 3);
   assert(!h.isEmpty());
 
-  // Наивысший приоритет = 8
+  // max priority = 8
   assert(h.peek() == 300);
   h.pop();
 
-  // Следующий = 5
+  // next = 5
   assert(h.peek() == 100);
   h.pop();
 
-  // Последний = 3
+  // last = 3
   assert(h.peek() == 200);
   h.pop();
 
   assert(h.isEmpty());
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_min_heap() {
   std::cout << "Testing min heap... ";
-  // Min-heap: меньший приоритет = выше
-  Heap<int, int, std::less<int>> h;
+
+  Heap<int, int, std::less<int>> h;  // min-heap (std::less)
 
   h.push(5, 100);
   h.push(3, 200);
   h.push(8, 300);
 
-  // Наименьший приоритет = 3
+  // smallest priority = 3
   assert(h.peek() == 200);
   h.pop();
 
-  // Следующий = 5
+  // next = 5
   assert(h.peek() == 100);
   h.pop();
 
-  // Последний = 8
+  // last = 8
   assert(h.peek() == 300);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_same_priorities() {
@@ -71,21 +71,18 @@ void test_same_priorities() {
 
   assert(h.size() == 3);
 
-  // Все с одинаковым приоритетом - просто извлекаем
   h.pop();
   h.pop();
   h.pop();
 
-  // Проверяем, что все элементы извлечены
   assert(h.isEmpty());
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_many_elements() {
   std::cout << "Testing with many elements... ";
   Heap<int> h;
 
-  // Добавляем в случайном порядке
   std::vector<int> priorities = {10, 5, 20, 1, 15, 30, 25, 3, 7};
   for (size_t i = 0; i < priorities.size(); ++i) {
     h.push(priorities[i], i * 100);
@@ -93,13 +90,12 @@ void test_many_elements() {
 
   assert(h.size() == priorities.size());
 
-  // Извлекаем все элементы
   while (!h.isEmpty()) {
     h.pop();
   }
 
   assert(h.isEmpty());
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_copy_constructor() {
@@ -114,11 +110,10 @@ void test_copy_constructor() {
   assert(h2.size() == h1.size());
   assert(h2.peek() == h1.peek());
 
-  // Изменение h2 не должно влиять на h1
   h2.pop();
   assert(h2.size() == 2);
   assert(h1.size() == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_move_constructor() {
@@ -133,7 +128,7 @@ void test_move_constructor() {
 
   assert(h2.size() == old_size);
   assert(h2.peek() == 300);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_copy_assignment() {
@@ -148,7 +143,7 @@ void test_copy_assignment() {
   h2 = h1;
   assert(h2.size() == 1);
   assert(h2.peek() == 800);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_move_assignment() {
@@ -163,7 +158,7 @@ void test_move_assignment() {
   h2 = std::move(h1);
   assert(h2.size() == 2);
   assert(h2.peek() == 900);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_clear() {
@@ -177,7 +172,7 @@ void test_clear() {
   h.clear();
   assert(h.isEmpty());
   assert(h.size() == 0);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_with_strings() {
@@ -193,30 +188,26 @@ void test_with_strings() {
   assert(h.peek() == "medium");
   h.pop();
   assert(h.peek() == "low");
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_exceptions() {
   std::cout << "Testing exceptions... ";
   Heap<int> h;
 
-  // pop на пустой куче
   try {
     h.pop();
     assert(false && "Should throw exception");
   } catch (const std::runtime_error& e) {
-    // Ожидаемое исключение
   }
 
-  // peek на пустой куче
   try {
     h.peek();
     assert(false && "Should throw exception");
   } catch (const std::runtime_error& e) {
-    // Ожидаемое исключение
   }
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_iterators() {
@@ -227,13 +218,12 @@ void test_iterators() {
   h.push(3, 200);
   h.push(8, 300);
 
-  // Проверяем что можем итерироваться
   size_t count = 0;
   for (auto it = h.begin(); it != h.end(); ++it) {
     count++;
   }
   assert(count == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_range_for() {
@@ -247,25 +237,22 @@ void test_range_for() {
   size_t count = 0;
   for (const auto& pair : h) {
     count++;
-    // pair.first = priority, pair.second = value
     assert(pair.second >= 100 && pair.second <= 300);
   }
   assert(count == 3);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_priority_order() {
   std::cout << "Testing priority order extraction... ";
   Heap<int> h;
 
-  // Добавляем элементы
   h.push(10, 1000);
   h.push(50, 5000);
   h.push(30, 3000);
   h.push(20, 2000);
   h.push(40, 4000);
 
-  // Извлекаем в порядке убывания приоритета
   assert(h.peek() == 5000);
   h.pop();  // priority 50
   assert(h.peek() == 4000);
@@ -278,7 +265,7 @@ void test_priority_order() {
   h.pop();  // priority 10
 
   assert(h.isEmpty());
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_rvalue_push() {
@@ -289,7 +276,7 @@ void test_rvalue_push() {
   h.push(10, std::move(s));
 
   assert(h.peek() == "movable");
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 int main() {
@@ -316,10 +303,10 @@ int main() {
     std::cout << "\n=== All tests passed! ===\n";
     return 0;
   } catch (const std::exception& e) {
-    std::cerr << "\n✗ Test failed with exception: " << e.what() << "\n";
+    std::cerr << "\n Test failed with exception: " << e.what() << "\n";
     return 1;
   } catch (...) {
-    std::cerr << "\n✗ Test failed with unknown exception\n";
+    std::cerr << "\n Test failed with unknown exception\n";
     return 1;
   }
 }

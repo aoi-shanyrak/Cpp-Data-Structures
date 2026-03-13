@@ -9,7 +9,7 @@ void test_constructor_with_maxsize() {
   HeapWithInc<int> h(10);
   assert(h.isEmpty());
   assert(h.size() == 0);
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_basic_operations() {
@@ -29,7 +29,7 @@ void test_basic_operations() {
 
   h.pop();
   assert(h.peek() == 1);  // priority 3 is last
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_contains_value() {
@@ -52,7 +52,7 @@ void test_contains_value() {
   assert(h.containsValue(0));
   assert(h.containsValue(2));
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_increase_priority_by_index() {
@@ -78,7 +78,7 @@ void test_increase_priority_by_index() {
   // Now value 0 should be on top with priority 10
   assert(h.peek() == 0);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_increase_priority_by_value() {
@@ -104,7 +104,7 @@ void test_increase_priority_by_value() {
   // Now value 0 should be on top with priority 20
   assert(h.peek() == 0);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_increase_priority_maintains_heap_property() {
@@ -126,7 +126,7 @@ void test_increase_priority_maintains_heap_property() {
   h.pop();
   assert(h.peek() == 9);  // priority 9 is next highest
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_increase_priority_exception_out_of_range() {
@@ -143,7 +143,7 @@ void test_increase_priority_exception_out_of_range() {
     // Expected
   }
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_increase_priority_by_value_exception_not_in_heap() {
@@ -160,7 +160,7 @@ void test_increase_priority_by_value_exception_not_in_heap() {
     // Expected
   }
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_pop_updates_index_map() {
@@ -181,7 +181,7 @@ void test_pop_updates_index_map() {
   assert(h.containsValue(0));
   assert(h.containsValue(2));
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_multiple_increase_operations() {
@@ -206,7 +206,7 @@ void test_multiple_increase_operations() {
   h.pop();
   assert(h.peek() == 9);  // Next highest original priority
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_min_heap_with_increase() {
@@ -231,7 +231,7 @@ void test_min_heap_with_increase() {
   // In min-heap, this pushes it down, so value 1 (priority 3) is still on top
   assert(h.peek() == 1);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_copy_constructor() {
@@ -256,7 +256,7 @@ void test_copy_constructor() {
   // h1 should be unchanged
   assert(h1.peek() == 2);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_move_constructor() {
@@ -275,7 +275,7 @@ void test_move_constructor() {
   assert(h2.containsValue(1));
   assert(h2.containsValue(2));
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_clear() {
@@ -290,7 +290,7 @@ void test_clear() {
   assert(h.isEmpty());
   assert(h.size() == 0);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_peek_with_priority() {
@@ -311,7 +311,7 @@ void test_peek_with_priority() {
   assert(p2 == 42);
   assert(v2 == 0);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_pop_with_priority() {
@@ -334,7 +334,7 @@ void test_pop_with_priority() {
   assert(p3 == 17 && v3 == 1);
   assert(h.isEmpty());
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 void test_dijkstra_like_scenario() {
@@ -372,7 +372,7 @@ void test_dijkstra_like_scenario() {
   // Next should be vertex 1 (distance 4) - next smallest
   assert(pq.peek() == 1);
 
-  std::cout << "✓\n";
+  std::cout << "passed\n";
 }
 
 int main() {
