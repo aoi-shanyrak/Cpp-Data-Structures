@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+using namespace aoi;
+
 void test_constructor_with_maxsize() {
   std::cout << "Testing constructor with maxSize... ";
   HeapWithInc<int> h(10);
