@@ -1,8 +1,11 @@
-#include "../headers/Heap.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "../headers/Heap.hpp"
+
+using namespace aoi;
 
 void test_constructor() {
   std::cout << "Testing constructor... ";

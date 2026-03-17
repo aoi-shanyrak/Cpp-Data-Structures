@@ -4,6 +4,8 @@
 
 #include "../headers/Vector.hpp"
 
+using namespace aoi;
+
 void test_constructor() {
   std::cout << "Testing constructor... ";
   Vector<int> v(5, 42);

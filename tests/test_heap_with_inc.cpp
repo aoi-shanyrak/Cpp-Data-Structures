@@ -1,8 +1,9 @@
-#include "../headers/HeapWithInc.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "../headers/HeapWithInc.hpp"
 
 using namespace aoi;
 
