@@ -37,6 +37,9 @@ namespace aoi {
     void destroy_elements();
 
    public:
+    using value_type = T;
+
+    Vector() : vb {A(), 0} {}
     explicit Vector(typename A::size_type n, const T& value = T(), const A& alloc = A());
 
     Vector(const Vector& other);
@@ -47,6 +50,7 @@ namespace aoi {
 
     ~Vector() { destroy_elements(); }
 
+    bool empty() const { return vb.elem == vb.space; }
     typename A::size_type size() const { return vb.space - vb.elem; }
     typename A::size_type capacity() const { return vb.end - vb.elem; }
 
@@ -68,6 +72,9 @@ namespace aoi {
 
     void push_back(const T& value);
     void pop_back();
+
+    template <typename... Args>
+    void emplace_back(Args&&... args);
   };
 
   template <typename T, typename A>
@@ -167,6 +174,16 @@ namespace aoi {
       --vb.space;
       std::allocator_traits<A>::destroy(vb.alloc, vb.space);
     }
+  }
+
+  template <typename T, typename A>
+  template <typename... Args>
+  void Vector<T, A>::emplace_back(Args&&... args) {
+    if (capacity() == size()) {
+      reserve(size() ? 2 * size() : 8);
+    }
+    std::allocator_traits<A>::construct(vb.alloc, &vb.elem[size()], std::forward<Args>(args)...);
+    ++vb.space;
   }
 
 }
