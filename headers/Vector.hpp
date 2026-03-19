@@ -12,8 +12,8 @@ namespace aoi {
     T* end;
 
     Vector_base(const A& a, typename A::size_type n)
-        : alloc {a}, elem {alloc.allocate(n)}, space {elem + n}, end {elem + n} {}
-    ~Vector_base() { alloc.deallocate(elem, end - elem); }
+        : alloc {a}, elem {std::allocator_traits<A>::allocate(alloc, n)}, space {elem + n}, end {elem + n} {}
+    ~Vector_base() { std::allocator_traits<A>::deallocate(alloc, elem, end - elem); }
 
     Vector_base(const Vector_base&) = delete;
     Vector_base& operator=(const Vector_base&) = delete;
@@ -123,7 +123,9 @@ namespace aoi {
 
     typename A::size_type sz = size();
     typename A::size_type asz = a.size();
+
     vb.alloc = a.vb.alloc;
+
     if (asz <= sz) {
       std::copy(a.begin(), a.end(), vb.elem);
       for (T* p = vb.elem + asz; p != vb.space; ++p) {
@@ -144,6 +146,7 @@ namespace aoi {
     Vector_base<T, A> new_vb {vb.alloc, new_capacity};
     new_vb.space = new_vb.elem + size();
     std::uninitialized_move(vb.elem, vb.space, new_vb.elem);
+
     destroy_elements();
     std::swap(vb, new_vb);
   }
@@ -173,6 +176,11 @@ namespace aoi {
     if (size() > 0) {
       --vb.space;
       std::allocator_traits<A>::destroy(vb.alloc, vb.space);
+    }
+    typename A::size_type sz {size()};
+    if (sz <= (capacity() / 4)) {
+      typename A::size_type new_size {capacity() / 2};
+      resize(new_size);
     }
   }
 
