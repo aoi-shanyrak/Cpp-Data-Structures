@@ -25,12 +25,12 @@ namespace aoi {
   }
 
   template <typename T, typename P = int, typename Compare = std::greater<P>,
-            typename Allocator = std::allocator<std::pair<P, T>>>
+            typename Container = std::vector<std::pair<P, T>>>
   class Heap {
 
    public:
-    using iterator = typename std::vector<std::pair<P, T>, Allocator>::iterator;
-    using const_iterator = typename std::vector<std::pair<P, T>, Allocator>::const_iterator;
+    using iterator = typename Container::iterator;
+    using const_iterator = typename Container::const_iterator;
 
     Heap() = default;
     Heap(const Heap&) = default;
@@ -86,7 +86,7 @@ namespace aoi {
 
    private:
     Compare comp;
-    std::vector<std::pair<P, T>, Allocator> data;
+    Container data;
 
     bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].first, data[b].first))) {
       return comp(data[a].first, data[b].first);

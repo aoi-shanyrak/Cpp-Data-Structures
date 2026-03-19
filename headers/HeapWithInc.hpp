@@ -26,12 +26,12 @@ namespace aoi {
   }
 
   template <typename T, typename P = int, typename Compare = std::greater<P>,
-            typename Allocator = std::allocator<std::pair<P, T>>>
+            typename Container = std::vector<std::pair<P, T>>>
   class HeapWithInc {
 
    public:
-    using iterator = typename std::vector<std::pair<P, T>, Allocator>::iterator;
-    using const_iterator = typename std::vector<std::pair<P, T>, Allocator>::const_iterator;
+    using iterator = typename Container::iterator;
+    using const_iterator = typename Container::const_iterator;
 
     HeapWithInc() = default;
     explicit HeapWithInc(size_t maxSize) : indexMap(maxSize, static_cast<size_t>(-1)) {}
@@ -117,7 +117,7 @@ namespace aoi {
 
    private:
     Compare comp;
-    std::vector<std::pair<P, T>, Allocator> data;
+    Container data;
     std::vector<size_t> indexMap;
 
     bool isValueIndexValid(T value) const {
