@@ -8,6 +8,7 @@
 namespace aoi {
 
   template <typename NodeType, typename A = std::allocator<NodeType>,
+            typename ChunkSize = std::integral_constant<size_t, 8>,
             template <typename...> typename Container = std::vector>
   class NodeAllocator {
 
@@ -18,6 +19,8 @@ namespace aoi {
     static constexpr size_t alignment = std::max(alignof(NodeType), alignof(FreeNode));
     static constexpr size_t node_size =
         (std::max(sizeof(NodeType), sizeof(FreeNode)) + alignment - 1) & ~(alignment - 1);
+    static constexpr size_t chunk_size = ChunkSize::value;
+    static_assert(chunk_size > 0, "Chunk size must be positive");
 
     struct alignas(alignment) NodeStorage {
       std::byte data[node_size];
@@ -27,8 +30,6 @@ namespace aoi {
     ChunkAlloc alloc;
     FreeNode* freelist = nullptr;
     Container<NodeStorage*> chunklist;
-
-    const size_t chunk_size = 8;
 
 
     void clear() {
@@ -86,7 +87,7 @@ namespace aoi {
     }
   };
 
-  template <typename T, typename A = std::allocator<T>>
+  template <typename T, typename A = std::allocator<T>, typename ChunkSize = std::integral_constant<size_t, 8>>
   class LinkedList_Base {};
 
 }
