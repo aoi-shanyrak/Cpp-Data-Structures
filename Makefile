@@ -1,5 +1,7 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -I.
+BASE_CXXFLAGS = -std=c++17 -Wall -Wextra -I.
+SANITIZER_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g
+CXXFLAGS = $(BASE_CXXFLAGS) $(SANITIZER_FLAGS)
 
 SRCDIR = tests
 BINDIR = bin
@@ -15,6 +17,7 @@ $(BINDIR)/%: $(SRCDIR)/%.cpp
 
 test: $(TARGETS)
 	@for test in $(TARGETS); do \
+		echo "\n" \
 		echo "Running $$test..."; \
 		$$test; \
 	done
