@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -9,30 +10,30 @@ namespace aoi {
   template <typename NodeType, typename A = std::allocator<NodeType>,
             template <typename...> typename Container = std::vector>
   class NodeAllocator {
+
    private:
+    struct FreeNode {
+      FreeNode* next;
+    };
     static constexpr size_t alignment = std::max(alignof(NodeType), alignof(FreeNode));
     static constexpr size_t node_size =
         (std::max(sizeof(NodeType), sizeof(FreeNode)) + alignment - 1) & ~(alignment - 1);
 
-    struct NodeStorage {
-      alignas(alignment) std::byte data[node_size];
+    struct alignas(alignment) NodeStorage {
+      std::byte data[node_size];
     };
-    using BlockAlloc = typename std::allocator_traits<A>::template rebind_alloc<NodeStorage>;
+    using ChunkAlloc = typename std::allocator_traits<A>::template rebind_alloc<NodeStorage>;
 
-    BlockAlloc alloc;
-
-    Container<NodeStorage*> chunklist;
-    const size_t chunk_size = 16;
-
-    struct FreeNode {
-      FreeNode* next;
-    };
+    ChunkAlloc alloc;
     FreeNode* freelist = nullptr;
+    Container<NodeStorage*> chunklist;
+
+    const size_t chunk_size = 8;
 
 
     void clear() {
       for (NodeStorage* ptr : chunklist) {
-        alloc.deallocate(ptr, chunk_size * node_size);
+        alloc.deallocate(ptr, chunk_size);
       }
       chunklist.clear();
       freelist = nullptr;
@@ -47,7 +48,7 @@ namespace aoi {
     NodeAllocator& operator=(const NodeAllocator&) = delete;
 
     NodeAllocator(NodeAllocator&& na) noexcept
-        : freelist {na.freelist}, alloc {std::move(na.alloc)}, chunklist {std::move(na.chunklist)} {
+        : alloc {std::move(na.alloc)}, freelist {na.freelist}, chunklist {std::move(na.chunklist)} {
       na.freelist = nullptr;
     }
     NodeAllocator& operator=(NodeAllocator&& other) noexcept {
@@ -61,7 +62,21 @@ namespace aoi {
       return *this;
     }
 
-    NodeType* allocate();
+    NodeType* allocate() {
+      if (!freelist) {
+        NodeStorage* new_chunk = alloc.allocate(chunk_size);
+        chunklist.push_back(new_chunk);
+        for (size_t i = 0; i < chunk_size; ++i) {
+          NodeStorage* storage = &new_chunk[i];
+          FreeNode* node = reinterpret_cast<FreeNode*>(storage);
+          node->next = freelist;
+          freelist = node;
+        }
+      }
+      FreeNode* node = freelist;
+      freelist = node->next;
+      return reinterpret_cast<NodeType*>(node);
+    }
 
     void deallocate(NodeType* ptr) {
       if (!ptr) return;

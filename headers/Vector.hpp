@@ -11,10 +11,18 @@ namespace aoi {
     T* space;
     T* end;
 
-    Vector_base(const A& a, typename A::size_type n)
-        : alloc {a}, elem {std::allocator_traits<A>::allocate(alloc, n)}, space {elem + n}, end {elem + n} {}
-    ~Vector_base() { std::allocator_traits<A>::deallocate(alloc, elem, end - elem); }
-
+    Vector_base(const A& a, typename A::size_type n) : alloc {a}, elem {nullptr}, space {nullptr}, end {nullptr} {
+      if (n != 0) {
+        elem = std::allocator_traits<A>::allocate(alloc, n);
+        space = elem + n;
+        end = elem + n;
+      }
+    }
+    ~Vector_base() {
+      if (elem) {
+        std::allocator_traits<A>::deallocate(alloc, elem, end - elem);
+      }
+    }
     Vector_base(const Vector_base&) = delete;
     Vector_base& operator=(const Vector_base&) = delete;
 
