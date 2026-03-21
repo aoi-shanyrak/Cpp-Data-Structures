@@ -104,7 +104,7 @@ namespace aoi {
     };
 
     template <typename T>
-    class DoublyNode : public SinglyNode {
+    class DoublyNode : public SinglyNode<T> {
      public:
       DoublyNode* prev;
 
@@ -117,7 +117,7 @@ namespace aoi {
   class LinkedList_Base {
 
    protected:
-    NodeType::SinglyNode *head, *tail;
+    NodeType::SinglyNode<T>*head, *tail;
 
    public:
   };
