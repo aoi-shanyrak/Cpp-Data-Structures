@@ -5,6 +5,7 @@ This library provides templated implementations of three data structures in C++1
 - **Vector** — a dynamic array (similar to `std::vector`) with manual memory management with allocator.
 - **Heap** — a classic binary heap (priority queue) with support for custom comparators.
 - **HeapWithInc** — an extended version of the heap that allows increasing the priority of an arbitrary element (decrease-key) using an index map.
+- **LinkedList** — singly and doubly linked lists with custom iterators and node allocator.
 
 ---
 
@@ -59,6 +60,17 @@ pq.push(0, 0);   // vertex 0, distance 0
 pq.push(1000, 1); // vertex 1, distance "infinity"
 pq.increasePriorityByValue(1, 4); // decrease distance to 4 (in min-heap, increasing the number = lowering priority)
 ```
+
+---
+
+## LinkedList
+
+The library provides two linked list implementations:
+
+- `SinglyLinkedList<T, A>` — singly linked list with forward iterator.
+- `DoublyLinkedList<T, A>` — doubly linked list with bidirectional iterator.
+
+This linked list also has his own allocator based on import allocator. So it reduce amount of syscalls by reserving memory for nodes.
 
 ---
 
