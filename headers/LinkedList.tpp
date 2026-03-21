@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 namespace aoi {
@@ -113,13 +115,105 @@ namespace aoi {
 
   }
 
-  template <typename T, typename A = std::allocator<T>>
-  class LinkedList_Base {
+  namespace Base {
 
-   protected:
-    NodeType::SinglyNode<T>*head, *tail;
+    template <typename T>
+    class LinkedList_Base {
+
+     protected:
+      using Node = NodeType::SinglyNode<T>;
+
+      Node *head, *tail;
+      size_t size;
+
+     public:
+      template <bool IsConst>
+      class Iterator_Base {
+       private:
+        using NodePtr = std::conditional<IsConst, const Node*, Node*>;
+        NodePtr node;
+
+       public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = T;
+        using difference_type = std::ptrdiff_t;
+        using pointer = std::conditional_t<IsConst, const T*, T*>;
+        using reference = std::conditional_t<IsConst, const T&, T&>;
+
+        Iterator_Base() = default;
+        explicit Iterator_Base(NodePtr ptr = nullptr) : node(ptr) {}
+        Iterator_Base(const Iterator_Base<false>& other)
+          requires(IsConst)
+            : node(other.node) {}
+
+        reference operator*() const { return node->data; }
+        pointer operator->() const { return &node->data; }
+
+        Iterator_Base& operator++() {
+          node = node->next;
+          return *this;
+        }
+        Iterator_Base operator++(int) {
+          Iterator_Base tmp = *this;
+          node = node->next;
+          return tmp;
+        }
+
+        friend bool operator==(const Iterator_Base& a, const Iterator_Base& b) { return a.node == b.node; }
+        friend bool operator!=(const Iterator_Base& a, const Iterator_Base& b) { return a.node != b.node; }
+      };
+      template <bool>
+      friend class Iterator_Base;
+
+      using iterator = Iterator_Base<false>;
+      using const_iterator = Iterator_Base<true>;
+
+
+      iterator begin() { return iterator {head}; }
+      iterator end() { return iterator {nullptr}; }
+      const_iterator begin() const { return const_iterator {head}; }
+      const_iterator end() const { return const_iterator {nullptr}; }
+
+      virtual void push_front(T value) = 0;
+      virtual void push_back(T value) = 0;
+
+      virtual T& pop_front() = 0;
+      virtual T& pop_back() = 0;
+      virtual const T& front() = 0;
+      virtual const T& back() = 0;
+
+      size_t size() { return size; }
+      bool empty() { return size == 0; }
+
+      virtual void clear() = 0;
+      virtual ~LinkedList_Base() = 0;
+    };
+
+  }
+
+  template <typename T, typename A = std::allocator<T>>
+  class SinglyLinkedList : public Base::LinkedList_Base {
+   private:
+    using Node = NodeType::SinglyNode<T>;
+    using NodeAlloc = Allocator::NodeAllocator<Node, A>;
+
+    NodeAlloc alloc;
 
    public:
+    explicit SinglyLinkedList(const A& alloc = A()) : alloc {alloc} {}
+
+    void push_front(T value) override {
+      Node* new_node = alloc.allocate();
+
+      new (new_node) Node {std::move(value)};
+      new_node->next = this->head;
+      this->head = new_node;
+
+      if (!this->tail) {
+        this->tail = new_node;
+      }
+      ++this->size;
+    }
   };
 
 }
