@@ -46,7 +46,6 @@ namespace aoi {
       if (isEmpty()) throw std::runtime_error("Heap::peek(): heap is empty");
       return data[0].second;
     }
-
     std::pair<const T&, const P&> peekWithPriority() const {
       if (isEmpty()) throw std::runtime_error("Heap::peekWithPriority(): heap is empty");
       return data[0];
@@ -82,6 +81,9 @@ namespace aoi {
     }
 
     void merge(Heap& other) {
+      if (this == &other) {
+        return;
+      }
       Container combined;
       combined.reserve(data.size() + other.data.size());
 
@@ -289,5 +291,4 @@ namespace aoi {
       }
     }
   };
-
 }
