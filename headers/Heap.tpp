@@ -80,6 +80,24 @@ namespace aoi {
       }
     }
 
+    void merge(Heap& other) {
+      Container combined;
+      combined.reserve(data.size() + other.data.size());
+
+      for (auto& x : data) {
+        combined.push_back(x);
+      }
+      for (auto& x : other.data) {
+        combined.push_back(x);
+      }
+      data.clear();
+      other.data.clear();
+
+      data = std::move(combined);
+      rebuildIndexMap();
+      heapify();
+    }
+
     iterator begin() noexcept { return data.begin(); }
     iterator end() noexcept { return data.end(); }
     const_iterator begin() const noexcept { return data.begin(); }
@@ -87,6 +105,7 @@ namespace aoi {
 
     bool isEmpty() const noexcept { return data.empty(); }
     size_t size() const noexcept { return data.size(); }
+
     virtual void clear() noexcept { data.clear(); }
 
 
@@ -94,6 +113,7 @@ namespace aoi {
     Compare comp;
     Container data;
 
+    virtual void rebuildIndexMap() {}
     virtual void swapIndices(size_t i, size_t j) { std::swap(data[i], data[j]); }
     virtual void onElementMovedOnTop() {}
     virtual void onElementAdded(size_t) {}
@@ -101,6 +121,13 @@ namespace aoi {
 
     bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].first, data[b].first))) {
       return comp(data[a].first, data[b].first);
+    }
+
+    void heapify() {
+      size_t n = size();
+      for (size_t i = n; i-- > 0;) {
+        heapDown(i);
+      }
     }
 
     void heapUp(size_t i) {
@@ -195,6 +222,13 @@ namespace aoi {
 
    private:
     std::vector<size_t> indexMap;
+
+    void rebuildIndexMap() override {
+      indexMap.clear();
+      for (size_t i = 0; i < Base::size(); ++i) {
+        onElementAdded(i);
+      }
+    }
 
     void swapIndices(size_t i, size_t j) {
       std::swap(Base::data[i], Base::data[j]);

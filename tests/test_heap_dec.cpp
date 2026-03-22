@@ -377,6 +377,62 @@ void test_dijkstra_like_scenario() {
   std::cout << "passed\n";
 }
 
+void test_merge_preserves_index_map() {
+  std::cout << "Testing merge preserves index map... ";
+  MaxHeapDec h1(10);
+  MaxHeapDec h2(10);
+
+  h1.push(10, 1);
+  h1.push(30, 3);
+  h2.push(20, 2);
+  h2.push(40, 4);
+
+  h1.merge(h2);
+
+  assert(h1.size() == 4);
+  assert(h2.isEmpty());
+
+  assert(h1.containsValue(1));
+  assert(h1.containsValue(2));
+  assert(h1.containsValue(3));
+  assert(h1.containsValue(4));
+
+  assert(h1.peek() == 4);  // priority 40
+  h1.pop();
+  assert(h1.peek() == 3);  // priority 30
+
+  // If indexMap is valid, this should reposition value 1 to the top.
+  h1.decreasePriorityByValue(1, 100);
+  assert(h1.peek() == 1);
+
+  std::cout << "passed\n";
+}
+
+void test_merge_with_empty_heap() {
+  std::cout << "Testing merge with empty heap... ";
+  MaxHeapDec h1(10);
+  MaxHeapDec h2(10);
+
+  h1.push(5, 0);
+  h1.push(8, 2);
+
+  h1.merge(h2);
+  assert(h1.size() == 2);
+  assert(h2.isEmpty());
+  assert(h1.containsValue(0));
+  assert(h1.containsValue(2));
+
+  MaxHeapDec h3(10);
+  h3.merge(h1);
+  assert(h1.isEmpty());
+  assert(h3.size() == 2);
+  assert(h3.containsValue(0));
+  assert(h3.containsValue(2));
+  assert(h3.peek() == 2);
+
+  std::cout << "passed\n";
+}
+
 int main() {
   std::cout << "=== HeapWithInc Tests ===\n\n";
 
@@ -397,6 +453,8 @@ int main() {
   test_peek_with_priority();
   test_pop_with_priority();
   test_dijkstra_like_scenario();
+  test_merge_preserves_index_map();
+  test_merge_with_empty_heap();
 
   std::cout << "\n=== All HeapWithInc tests passed! ===\n";
   return 0;

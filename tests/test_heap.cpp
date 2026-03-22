@@ -282,6 +282,63 @@ void test_rvalue_push() {
   std::cout << "passed\n";
 }
 
+void test_merge_max_heap() {
+  std::cout << "Testing merge for max heap... ";
+  Heap<int, int, std::greater<int>> h1;
+  Heap<int, int, std::greater<int>> h2;
+
+  h1.push(10, 1000);
+  h1.push(30, 3000);
+  h1.push(20, 2000);
+
+  h2.push(25, 2500);
+  h2.push(5, 500);
+  h2.push(40, 4000);
+
+  h1.merge(h2);
+
+  assert(h1.size() == 6);
+  assert(h2.isEmpty());
+
+  assert(h1.peek() == 4000);
+  h1.pop();
+  assert(h1.peek() == 3000);
+  h1.pop();
+  assert(h1.peek() == 2500);
+  h1.pop();
+  assert(h1.peek() == 2000);
+  h1.pop();
+  assert(h1.peek() == 1000);
+  h1.pop();
+  assert(h1.peek() == 500);
+  h1.pop();
+
+  assert(h1.isEmpty());
+  std::cout << "passed\n";
+}
+
+void test_merge_with_empty_heap() {
+  std::cout << "Testing merge with empty heap... ";
+  Heap<int, int, std::greater<int>> h1;
+  Heap<int, int, std::greater<int>> h2;
+
+  h1.push(7, 700);
+  h1.push(1, 100);
+
+  h1.merge(h2);
+  assert(h1.size() == 2);
+  assert(h2.isEmpty());
+  assert(h1.peek() == 700);
+
+  Heap<int, int, std::greater<int>> h3;
+  h3.merge(h1);
+  assert(h3.size() == 2);
+  assert(h1.isEmpty());
+  assert(h3.peek() == 700);
+
+  std::cout << "passed\n";
+}
+
 int main() {
   std::cout << "=== Heap Test Suite ===\n\n";
 
@@ -302,6 +359,8 @@ int main() {
     test_range_for();
     test_priority_order();
     test_rvalue_push();
+    test_merge_max_heap();
+    test_merge_with_empty_heap();
 
     std::cout << "\n=== All tests passed! ===\n";
     return 0;
