@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -190,7 +191,7 @@ namespace aoi {
     HeapDecreasing& operator=(HeapDecreasing&&) noexcept = default;
     ~HeapDecreasing() = default;
 
-    void decreasePriorityByValue(T value, P newPriority) {
+    void decreasePriorityByValue(const T& value, P newPriority) {
       if (!isValueIndexValid(value)) {
         throw std::runtime_error("Heap::decreasePriorityByValue(): indexMap not initialized");
       }
@@ -209,7 +210,21 @@ namespace aoi {
       Base::heapUp(index);
     }
 
-    bool containsValue(T value) const {
+    void deleteByValue(const T& value) {
+      if (Base::isEmpty()) {
+        throw std::runtime_error("Heap::deleteByValue(): heap is empty");
+      }
+      if (!isValueIndexValid(value)) {
+        throw std::runtime_error("Heap::deleteByValue(): indexMap not initialized");
+      }
+      P extremePriority = Base::comp(std::numeric_limits<P>::max(), std::numeric_limits<P>::lowest())
+                              ? std::numeric_limits<P>::max()
+                              : std::numeric_limits<P>::lowest();
+      decreasePriorityByValue(value, extremePriority);
+      Base::pop();
+    }
+
+    bool containsValue(const T& value) const {
       if (!isValueIndexValid(value)) return false;
       return indexMap[static_cast<size_t>(value)] != static_cast<size_t>(-1);
     }
@@ -255,7 +270,7 @@ namespace aoi {
       }
     }
 
-    bool isValueIndexValid(T value) const {
+    bool isValueIndexValid(const T& value) const {
       if (indexMap.empty()) {
         return false;
       }

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <climits>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -433,6 +434,299 @@ void test_merge_with_empty_heap() {
   std::cout << "passed\n";
 }
 
+void test_delete_by_value_basic() {
+  std::cout << "Testing deleteByValue basic... ";
+  MaxHeapDec h(10);
+
+  h.push(10, 0);
+  h.push(30, 2);
+  h.push(20, 1);
+
+  assert(h.size() == 3);
+  assert(h.containsValue(1));
+
+  h.deleteByValue(1);  // Delete element with value 1 (priority 20)
+
+  assert(h.size() == 2);
+  assert(!h.containsValue(1));
+  assert(h.containsValue(0));
+  assert(h.containsValue(2));
+
+  // Max element should still be 2 (priority 30)
+  assert(h.peek() == 2);
+  h.pop();
+  assert(h.peek() == 0);
+
+  std::cout << "passed\n";
+}
+
+void test_delete_by_value_top() {
+  std::cout << "Testing deleteByValue on top element... ";
+  MaxHeapDec h(10);
+
+  h.push(10, 0);
+  h.push(30, 2);
+  h.push(20, 1);
+
+  // Delete the top element (value 2 with priority 30)
+  h.deleteByValue(2);
+
+  assert(h.size() == 2);
+  assert(!h.containsValue(2));
+  assert(h.peek() == 1);  // Priority 20 is next highest
+  h.pop();
+  assert(h.peek() == 0);  // Priority 10 is last
+
+  std::cout << "passed\n";
+}
+
+void test_delete_by_value_maintains_heap() {
+  std::cout << "Testing deleteByValue maintains heap property... ";
+  MaxHeapDec h(15);
+
+  for (int i = 0; i < 10; ++i) {
+    h.push(i, i);
+  }
+
+  // Delete from the middle
+  h.deleteByValue(5);
+  assert(!h.containsValue(5));
+  assert(h.size() == 9);
+
+  // Verify heap is valid by extracting all elements in order
+  int prev_priority = INT_MAX;
+  while (!h.isEmpty()) {
+    auto [priority, value] = h.popWithPriority();
+    assert(priority <= prev_priority);  // Max-heap: decreasing order
+    prev_priority = priority;
+    assert(!h.containsValue(value));  // Element should be gone
+  }
+
+  std::cout << "passed\n";
+}
+
+void test_delete_by_value_exception_empty_heap() {
+  std::cout << "Testing deleteByValue exception (empty heap)... ";
+  MaxHeapDec h(10);
+
+  try {
+    h.deleteByValue(0);
+    assert(false && "Should throw exception");
+  } catch (const std::runtime_error& e) {
+    // Expected: "Heap::deleteByValue(): heap is empty"
+  }
+
+  std::cout << "passed\n";
+}
+
+void test_delete_by_value_exception_not_in_heap() {
+  std::cout << "Testing deleteByValue exception (value not in heap)... ";
+  MaxHeapDec h(10);
+
+  h.push(5, 0);
+  h.push(8, 2);
+
+  try {
+    h.deleteByValue(1);  // Value 1 not in heap
+    assert(false && "Should throw exception");
+  } catch (const std::runtime_error& e) {
+    // Expected via decreasePriorityByValue
+  }
+
+  assert(h.size() == 2);
+  assert(h.containsValue(0));
+  assert(h.containsValue(2));
+
+  std::cout << "passed\n";
+}
+
+void test_delete_by_value_negative_index() {
+  std::cout << "Testing deleteByValue with negative value... ";
+  HeapDecreasing<int, int, std::greater<int>> h(10);
+
+  h.push(5, 0);
+  h.push(8, 2);
+
+  try {
+    h.deleteByValue(-1);  // Negative value should fail
+    assert(false && "Should throw exception");
+  } catch (const std::runtime_error& e) {
+    // Expected: "Heap::deleteByValue(): indexMap not initialized"
+  }
+
+  assert(h.size() == 2);
+  std::cout << "passed\n";
+}
+
+void test_delete_multiple_values() {
+  std::cout << "Testing deleteByValue multiple times... ";
+  MaxHeapDec h(15);
+
+  for (int i = 0; i < 10; ++i) {
+    h.push(i, i);
+  }
+
+  h.deleteByValue(9);
+  h.deleteByValue(5);
+  h.deleteByValue(1);
+  h.deleteByValue(0);
+
+  assert(h.size() == 6);
+  assert(!h.containsValue(0));
+  assert(!h.containsValue(1));
+  assert(!h.containsValue(5));
+  assert(!h.containsValue(9));
+
+  // Remaining elements: 2, 3, 4, 6, 7, 8
+  assert(h.peek() == 8);  // Max priority
+  h.pop();
+  assert(h.peek() == 7);
+  h.pop();
+  assert(h.peek() == 6);
+
+  std::cout << "passed\n";
+}
+
+void test_delete_and_decrease_priority() {
+  std::cout << "Testing deleteByValue combined with decreasePriority... ";
+  MaxHeapDec h(10);
+
+  h.push(5, 0);
+  h.push(3, 1);
+  h.push(8, 2);
+
+  // Increase priority of value 1 to become top
+  h.decreasePriorityByValue(1, 100);
+  assert(h.peek() == 1);
+
+  // Delete the top element
+  h.deleteByValue(1);
+  assert(h.size() == 2);
+  assert(h.peek() == 2);  // Priority 8 is next
+
+  // Delete and then decrease another
+  h.deleteByValue(2);
+  assert(h.size() == 1);
+  h.decreasePriorityByValue(0, 50);
+  assert(h.peek() == 0);
+
+  std::cout << "passed\n";
+}
+
+void test_delete_in_min_heap() {
+  std::cout << "Testing deleteByValue in min-heap... ";
+  MinHeapDec h(10);
+
+  h.push(5, 0);
+  h.push(2, 1);
+  h.push(8, 2);
+
+  // Min-heap: priority 2 (value 1) is on top
+  assert(h.peek() == 1);
+
+  h.deleteByValue(1);
+  assert(h.size() == 2);
+  assert(!h.containsValue(1));
+
+  // Priority 5 (value 0) is now on top
+  assert(h.peek() == 0);
+  h.pop();
+  assert(h.peek() == 2);  // Priority 8
+
+  std::cout << "passed\n";
+}
+
+void test_delete_min_heap_top() {
+  std::cout << "Testing deleteByValue on min-heap top element... ";
+  MinHeapDec h(10);
+
+  h.push(5, 0);
+  h.push(2, 1);
+  h.push(8, 2);
+
+  // Delete the top element (value 1 with priority 2 - minimum)
+  h.deleteByValue(1);
+
+  assert(h.size() == 2);
+  assert(!h.containsValue(1));
+
+  // Priority 5 (value 0) is now on top (next minimum)
+  assert(h.peek() == 0);
+  h.pop();
+  assert(h.peek() == 2);  // Priority 8 is last
+
+  std::cout << "passed\n";
+}
+
+void test_delete_min_heap_maintains_property() {
+  std::cout << "Testing deleteByValue size reduction in min-heap... ";
+  MinHeapDec h(10);
+
+  h.push(5, 0);
+  h.push(2, 1);
+  h.push(8, 2);
+
+  size_t initial_size = h.size();
+  h.deleteByValue(1);
+
+  assert(h.size() == initial_size - 1);
+  assert(h.size() == 2);
+
+  std::cout << "passed\n";
+}
+
+void test_delete_min_heap_multiple() {
+  std::cout << "Testing deleteByValue multiple times in min-heap... ";
+  MinHeapDec h(15);
+
+  for (int i = 0; i < 10; ++i) {
+    h.push(i, i);
+  }
+
+  // Delete several elements
+  h.deleteByValue(0);  // Delete minimum
+  h.deleteByValue(5);
+  h.deleteByValue(9);  // Delete maximum
+
+  assert(h.size() == 7);
+  assert(!h.containsValue(0));
+  assert(!h.containsValue(5));
+  assert(!h.containsValue(9));
+
+  // Remaining elements should be: 1, 2, 3, 4, 6, 7, 8
+  assert(h.peek() == 1);  // Next minimum is 1
+  h.pop();
+  assert(h.peek() == 2);
+  h.pop();
+  assert(h.peek() == 3);
+
+  std::cout << "passed\n";
+}
+
+void test_delete_min_heap_with_decrease() {
+  std::cout << "Testing deleteByValue with decreasePriority in min-heap... ";
+  MinHeapDec h(10);
+
+  h.push(10, 0);
+  h.push(5, 1);
+  h.push(15, 2);
+
+  // In min-heap, decreasing priority means making it smaller
+  h.decreasePriorityByValue(0, 2);  // Make value 0's priority 2 (smaller than 5)
+  assert(h.peek() == 0);
+
+  h.deleteByValue(0);
+  assert(h.size() == 2);
+  assert(!h.containsValue(0));
+
+  // Next minimum should be value 1 (priority 5)
+  assert(h.peek() == 1);
+  h.pop();
+  assert(h.peek() == 2);
+
+  std::cout << "passed\n";
+}
+
 int main() {
   std::cout << "=== HeapWithInc Tests ===\n\n";
 
@@ -455,6 +749,19 @@ int main() {
   test_dijkstra_like_scenario();
   test_merge_preserves_index_map();
   test_merge_with_empty_heap();
+  test_delete_by_value_basic();
+  test_delete_by_value_top();
+  test_delete_by_value_maintains_heap();
+  test_delete_by_value_exception_empty_heap();
+  test_delete_by_value_exception_not_in_heap();
+  test_delete_by_value_negative_index();
+  test_delete_multiple_values();
+  test_delete_and_decrease_priority();
+  test_delete_in_min_heap();
+  test_delete_min_heap_top();
+  test_delete_min_heap_maintains_property();
+  test_delete_min_heap_multiple();
+  test_delete_min_heap_with_decrease();
 
   std::cout << "\n=== All HeapWithInc tests passed! ===\n";
   return 0;

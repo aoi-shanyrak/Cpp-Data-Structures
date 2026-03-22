@@ -27,7 +27,7 @@ The `Heap<T, Priority = int, Compare = std::less<Priority>, Allocator = ...>` cl
 
 - By default, it works as a **min-heap** (lower priority comes first).
 - You can specify a custom comparator (e.g., `std::greater<int>` for a max-heap).
-- Operations: `push(priority, value)`, `pop()`, `peek()`.
+- Operations: `push(priority, value)`, `pop()`, `peek()`, `merge(Heap)`.
 
 Example:
 
@@ -49,6 +49,7 @@ The `HeapDecreasing<T, Priority = int, Compare = std::greater<Priority>, Allocat
   - `decreasePriorityByValue(value, newPriority)` – increases the priority of an element by its value.
   - `decreasePriority(index, newPriority)` – by its index in the heap.
   - `peekWithPriority()` return pair.
+  - `merge(Heap)` merges two heaps into one.
 - All heap-modifying operations (`push`, `pop`, `decreasePriority`) automatically update `indexMap`.
 
 Example (simulating Dijkstra on a min-heap):
