@@ -17,7 +17,7 @@ void test_constructor() {
 
 void test_max_heap_basic() {
   std::cout << "Testing max heap basic operations... ";
-  Heap<int> h;  // max-heap (std::greater)
+  Heap<int, int, std::greater<int>> h;  // max-heap (std::greater)
 
   h.push(5, 100);
   h.push(3, 200);
@@ -66,7 +66,7 @@ void test_min_heap() {
 
 void test_same_priorities() {
   std::cout << "Testing same priorities... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   h.push(5, 1);
   h.push(5, 2);
@@ -84,7 +84,7 @@ void test_same_priorities() {
 
 void test_many_elements() {
   std::cout << "Testing with many elements... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   std::vector<int> priorities = {10, 5, 20, 1, 15, 30, 25, 3, 7};
   for (size_t i = 0; i < priorities.size(); ++i) {
@@ -103,12 +103,12 @@ void test_many_elements() {
 
 void test_copy_constructor() {
   std::cout << "Testing copy constructor... ";
-  Heap<int> h1;
+  Heap<int, int, std::greater<int>> h1;  // max-heap
   h1.push(5, 100);
   h1.push(3, 200);
   h1.push(8, 300);
 
-  Heap<int> h2(h1);
+  Heap<int, int, std::greater<int>> h2(h1);
 
   assert(h2.size() == h1.size());
   assert(h2.peek() == h1.peek());
@@ -121,13 +121,13 @@ void test_copy_constructor() {
 
 void test_move_constructor() {
   std::cout << "Testing move constructor... ";
-  Heap<int> h1;
+  Heap<int, int, std::greater<int>> h1;  // max-heap
   h1.push(5, 100);
   h1.push(3, 200);
   h1.push(8, 300);
 
   size_t old_size = h1.size();
-  Heap<int> h2(std::move(h1));
+  Heap<int, int, std::greater<int>> h2(std::move(h1));
 
   assert(h2.size() == old_size);
   assert(h2.peek() == 300);
@@ -136,10 +136,10 @@ void test_move_constructor() {
 
 void test_copy_assignment() {
   std::cout << "Testing copy assignment... ";
-  Heap<int> h1;
+  Heap<int, int, std::greater<int>> h1;
   h1.push(8, 800);
 
-  Heap<int> h2;
+  Heap<int, int, std::greater<int>> h2;
   h2.push(1, 100);
   h2.push(2, 200);
 
@@ -151,11 +151,11 @@ void test_copy_assignment() {
 
 void test_move_assignment() {
   std::cout << "Testing move assignment... ";
-  Heap<int> h1;
+  Heap<int, int, std::greater<int>> h1;
   h1.push(8, 800);
   h1.push(9, 900);
 
-  Heap<int> h2;
+  Heap<int, int, std::greater<int>> h2;
   h2.push(1, 100);
 
   h2 = std::move(h1);
@@ -166,7 +166,7 @@ void test_move_assignment() {
 
 void test_clear() {
   std::cout << "Testing clear... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
   h.push(5, 100);
   h.push(3, 200);
   h.push(8, 300);
@@ -180,7 +180,7 @@ void test_clear() {
 
 void test_with_strings() {
   std::cout << "Testing with std::string... ";
-  Heap<std::string> h;
+  Heap<std::string, int, std::greater<int>> h;
 
   h.push(10, "high");
   h.push(5, "medium");
@@ -196,7 +196,7 @@ void test_with_strings() {
 
 void test_exceptions() {
   std::cout << "Testing exceptions... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   try {
     h.pop();
@@ -215,7 +215,7 @@ void test_exceptions() {
 
 void test_iterators() {
   std::cout << "Testing iterators... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   h.push(5, 100);
   h.push(3, 200);
@@ -231,7 +231,7 @@ void test_iterators() {
 
 void test_range_for() {
   std::cout << "Testing range-based for... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   h.push(5, 100);
   h.push(3, 200);
@@ -248,7 +248,7 @@ void test_range_for() {
 
 void test_priority_order() {
   std::cout << "Testing priority order extraction... ";
-  Heap<int> h;
+  Heap<int, int, std::greater<int>> h;  // max-heap
 
   h.push(10, 1000);
   h.push(50, 5000);
@@ -273,7 +273,7 @@ void test_priority_order() {
 
 void test_rvalue_push() {
   std::cout << "Testing rvalue push... ";
-  Heap<std::string> h;
+  Heap<std::string, int, std::greater<int>> h;
 
   std::string s = "movable";
   h.push(10, std::move(s));

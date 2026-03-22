@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 namespace aoi {
 
@@ -42,21 +43,43 @@ namespace aoi {
   class Vector {
    private:
     Vector_base<T, A> vb;
-    void destroy_elements();
+
+    void destroy_elements() {
+      for (T* p = vb.elem; p != vb.space; ++p) {
+        p->~T();
+      }
+      vb.space = vb.elem;
+    }
+
 
    public:
     using value_type = T;
 
     Vector() : vb {A(), 0} {}
-    explicit Vector(typename A::size_type n, const T& value = T(), const A& alloc = A());
-
-    Vector(const Vector& other);
+    explicit Vector(typename A::size_type n, const T& value = T(), const A& alloc = A()) : vb {alloc, n} {
+      std::uninitialized_fill(vb.elem, vb.space, value);
+    }
+    Vector(const Vector& other) : vb {other.vb.alloc, other.size()} {
+      std::uninitialized_copy(other.begin(), other.end(), vb.elem);
+    }
     Vector& operator=(const Vector& other);
 
-    Vector(Vector&& other) noexcept;
-    Vector& operator=(Vector&& other) noexcept;
+    Vector(Vector&& other) noexcept : vb {other.vb.alloc, 0} {
+      vb.elem = other.vb.elem;
+      vb.space = other.vb.space;
+      vb.end = other.vb.end;
+      other.vb.elem = other.vb.space = other.vb.end = nullptr;
+    }
+    Vector& operator=(Vector&& other) noexcept {
+      if (this != &other) {
+        clear();
+        std::swap(vb, other.vb);
+      }
+      return *this;
+    }
 
     ~Vector() { destroy_elements(); }
+
 
     bool empty() const { return vb.elem == vb.space; }
     typename A::size_type size() const { return vb.space - vb.elem; }
@@ -82,43 +105,14 @@ namespace aoi {
     void pop_back();
 
     template <typename... Args>
-    void emplace_back(Args&&... args);
+    void emplace_back(Args&&... args) {
+      if (capacity() == size()) {
+        reserve(size() ? 2 * size() : 8);
+      }
+      std::allocator_traits<A>::construct(vb.alloc, &vb.elem[size()], std::forward<Args>(args)...);
+      ++vb.space;
+    }
   };
-
-  template <typename T, typename A>
-  void Vector<T, A>::destroy_elements() {
-    for (T* p = vb.elem; p != vb.space; ++p) {
-      p->~T();
-    }
-    vb.space = vb.elem;
-  }
-
-  template <typename T, typename A>
-  Vector<T, A>::Vector(typename A::size_type n, const T& value, const A& alloc) : vb {alloc, n} {
-    std::uninitialized_fill(vb.elem, vb.space, value);
-  }
-
-  template <typename T, typename A>
-  Vector<T, A>::Vector(const Vector<T, A>& a) : vb {a.vb.alloc, a.size()} {
-    std::uninitialized_copy(a.begin(), a.end(), vb.elem);
-  }
-
-  template <typename T, typename A>
-  Vector<T, A>::Vector(Vector&& a) noexcept : vb {a.vb.alloc, 0} {
-    vb.elem = a.vb.elem;
-    vb.space = a.vb.space;
-    vb.end = a.vb.end;
-    a.vb.elem = a.vb.space = a.vb.end = nullptr;
-  }
-
-  template <typename T, typename A>
-  Vector<T, A>& Vector<T, A>::operator=(Vector&& a) noexcept {
-    if (this != &a) {
-      clear();
-      std::swap(vb, a.vb);
-    }
-    return *this;
-  }
 
   template <typename T, typename A>
   Vector<T, A>& Vector<T, A>::operator=(const Vector& a) {
@@ -190,16 +184,6 @@ namespace aoi {
       typename A::size_type new_size {capacity() / 2};
       resize(new_size);
     }
-  }
-
-  template <typename T, typename A>
-  template <typename... Args>
-  void Vector<T, A>::emplace_back(Args&&... args) {
-    if (capacity() == size()) {
-      reserve(size() ? 2 * size() : 8);
-    }
-    std::allocator_traits<A>::construct(vb.alloc, &vb.elem[size()], std::forward<Args>(args)...);
-    ++vb.space;
   }
 
 }

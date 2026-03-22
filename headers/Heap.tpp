@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -24,7 +26,7 @@ namespace aoi {
 
   }
 
-  template <typename T, typename P = int, typename Compare = std::greater<P>,
+  template <typename T, typename P = int32_t, typename Compare = std::less<P>,
             typename Container = std::vector<std::pair<P, T>>>
   class Heap {
 
@@ -37,15 +39,15 @@ namespace aoi {
     Heap(Heap&&) noexcept = default;
     Heap& operator=(const Heap&) = default;
     Heap& operator=(Heap&&) noexcept = default;
-    ~Heap() = default;
+    virtual ~Heap() = default;
 
     const T& peek() const {
-      if (isEmpty()) throw std::runtime_error("Heap::top(): heap is empty");
+      if (isEmpty()) throw std::runtime_error("Heap::peek(): heap is empty");
       return data[0].second;
     }
 
     std::pair<const T&, const P&> peekWithPriority() const {
-      if (isEmpty()) throw std::runtime_error("Heap::top(): heap is empty");
+      if (isEmpty()) throw std::runtime_error("Heap::peekWithPriority(): heap is empty");
       return data[0];
     }
 
@@ -54,10 +56,12 @@ namespace aoi {
 
     std::pair<P, T> popWithPriority() {
       if (isEmpty()) throw std::runtime_error("Heap::popWithPriority(): heap is empty");
+      onElementRemoved(0);
       auto top = std::move(data[0]);
       data[0] = std::move(data.back());
       data.pop_back();
       if (!isEmpty()) {
+        onElementMovedOnTop();
         heapDown(0);
       }
       return top;
@@ -67,9 +71,11 @@ namespace aoi {
       if (isEmpty()) {
         throw std::runtime_error("Heap::pop(): heap is empty");
       }
+      onElementRemoved(0);
       data[0] = std::move(data.back());
       data.pop_back();
       if (!isEmpty()) {
+        onElementMovedOnTop();
         heapDown(0);
       }
     }
@@ -81,12 +87,17 @@ namespace aoi {
 
     bool isEmpty() const noexcept { return data.empty(); }
     size_t size() const noexcept { return data.size(); }
-    void clear() noexcept { data.clear(); }
+    virtual void clear() noexcept { data.clear(); }
 
 
-   private:
+   protected:
     Compare comp;
     Container data;
+
+    virtual void swapIndices(size_t i, size_t j) { std::swap(data[i], data[j]); }
+    virtual void onElementMovedOnTop() {}
+    virtual void onElementAdded(size_t) {}
+    virtual void onElementRemoved(size_t) {}
 
     bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].first, data[b].first))) {
       return comp(data[a].first, data[b].first);
@@ -96,7 +107,7 @@ namespace aoi {
       while (i > 0) {
         size_t p = details::HeapParent(i);
         if (higherPriority(i, p)) {
-          std::swap(data[i], data[p]);
+          swapIndices(i, p);
           i = p;
         } else
           break;
@@ -117,19 +128,115 @@ namespace aoi {
         }
         if (best == i) break;
 
-        std::swap(data[i], data[best]);
+        swapIndices(i, best);
         i = best;
       }
     }
 
     template <typename U>
     void push_impl(P priority, U&& value) {
+      size_t newIndex = data.size();
       data.emplace_back(priority, std::forward<U>(value));
       try {
-        heapUp(data.size() - 1);
+        onElementAdded(newIndex);
+        heapUp(newIndex);
       } catch (...) {
+        onElementRemoved(newIndex);
         data.pop_back();
         throw;
+      }
+    }
+  };
+
+
+  template <typename T, typename P = int32_t, typename Compare = std::less<P>,
+            typename Container = std::vector<std::pair<P, T>>>
+  class HeapDecreasing : public Heap<T, P, Compare, Container> {
+    using Base = Heap<T, P, Compare, Container>;
+
+   public:
+    HeapDecreasing() = default;
+    explicit HeapDecreasing(size_t maxSize) : indexMap(maxSize, static_cast<size_t>(-1)) {}
+    HeapDecreasing(const HeapDecreasing&) = default;
+    HeapDecreasing(HeapDecreasing&&) noexcept = default;
+    HeapDecreasing& operator=(const HeapDecreasing&) = default;
+    HeapDecreasing& operator=(HeapDecreasing&&) noexcept = default;
+    ~HeapDecreasing() = default;
+
+    void decreasePriorityByValue(T value, P newPriority) {
+      if (!isValueIndexValid(value)) {
+        throw std::runtime_error("Heap::decreasePriorityByValue(): indexMap not initialized");
+      }
+      size_t heapIndex = indexMap[static_cast<size_t>(value)];
+      if (heapIndex == static_cast<size_t>(-1)) {
+        throw std::runtime_error("Heap::decreasePriorityByValue(): value not in heap");
+      }
+      decreasePriority(heapIndex, newPriority);
+    }
+
+    void decreasePriority(size_t index, P newPriority) {
+      if (index >= Base::size()) {
+        throw std::out_of_range("Heap::decreasePriority(): index out of range");
+      }
+      Base::data[index].first = newPriority;
+      Base::heapUp(index);
+    }
+
+    bool containsValue(T value) const {
+      if (!isValueIndexValid(value)) return false;
+      return indexMap[static_cast<size_t>(value)] != static_cast<size_t>(-1);
+    }
+
+    void clear() noexcept override {
+      Base::clear();
+      indexMap.clear();
+    }
+
+
+   private:
+    std::vector<size_t> indexMap;
+
+    void swapIndices(size_t i, size_t j) {
+      std::swap(Base::data[i], Base::data[j]);
+      if (!indexMap.empty()) {
+        indexMap[Base::data[i].second] = i;
+        indexMap[Base::data[j].second] = j;
+      }
+    }
+
+    void onElementMovedOnTop() override {
+      if (!indexMap.empty()) {
+        indexMap[Base::data[0].second] = 0;
+      }
+    }
+    void onElementAdded(size_t newIndex) override {
+      ensureIndexMapSize(Base::data[newIndex].second);
+      if (!indexMap.empty()) {
+        indexMap[Base::data[newIndex].second] = newIndex;
+      }
+    }
+    void onElementRemoved(size_t index) override {
+      if (!indexMap.empty()) {
+        indexMap[Base::data[index].second] = static_cast<size_t>(-1);
+      }
+    }
+
+    bool isValueIndexValid(T value) const {
+      if (indexMap.empty()) {
+        return false;
+      }
+      if constexpr (std::is_signed_v<T>) {
+        if (value < 0) {
+          return false;
+        }
+      }
+      return static_cast<size_t>(value) < indexMap.size();
+    }
+
+    void ensureIndexMapSize(const T& value) {
+      size_t idx = static_cast<size_t>(value);
+      if (indexMap.size() <= idx) {
+        indexMap.resize(idx + 1, static_cast<size_t>(-1));
       }
     }
   };

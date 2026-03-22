@@ -23,16 +23,16 @@ for (int x : v) { /* ... */ }
 
 ## Heap
 
-The `Heap<T, Priority = int, Compare = std::greater<Priority>, Allocator = ...>` class implements a binary heap (priority queue).
+The `Heap<T, Priority = int, Compare = std::less<Priority>, Allocator = ...>` class implements a binary heap (priority queue).
 
-- By default, it works as a **max-heap** (higher priority comes first).
-- You can specify a custom comparator (e.g., `std::less<int>` for a min-heap).
+- By default, it works as a **min-heap** (lower priority comes first).
+- You can specify a custom comparator (e.g., `std::greater<int>` for a max-heap).
 - Operations: `push(priority, value)`, `pop()`, `peek()`.
 
 Example:
 
 ```cpp
-Heap<std::string> h;
+Heap<std::string, int, std::greater<int>> h;
 h.push(10, "high");
 h.push(5,  "medium");
 std::cout << h.peek(); // "high"
@@ -40,22 +40,21 @@ std::cout << h.peek(); // "high"
 
 ---
 
-## HeapWithInc
+## HeapDecreasing
 
-The `HeapWithInc<T, Priority = int, Compare = std::greater<Priority>, Allocator = ...>` class extends the standard heap by allowing **priority increases** for elements already in the heap (similar to decrease-key in Dijkstra's algorithm). This is achieved using an additional `indexMap` vector that stores the position of each element in the heap.
+The `HeapDecreasing<T, Priority = int, Compare = std::greater<Priority>, Allocator = ...>` class extends the standard heap by allowing **priority decreases** for elements already in the heap (similar to decrease-key in Dijkstra's algorithm). This is achieved using an additional `indexMap` vector that stores the position of each element in the heap.
 
-- The constructor requires specifying `maxSize` — the maximum number of unique values (the size of `indexMap`).
 - Methods:
   - `containsValue(value)` – checks if an element is present in the heap.
-  - `increasePriorityByValue(value, newPriority)` – increases the priority of an element by its value.
-  - `increasePriority(index, newPriority)` – by its index in the heap.
-  - `peekWithPriority()` and `popWithPriority()` return pairs.
-- All heap-modifying operations (`push`, `pop`, `increasePriority`) automatically update `indexMap`.
+  - `decreasePriorityByValue(value, newPriority)` – increases the priority of an element by its value.
+  - `decreasePriority(index, newPriority)` – by its index in the heap.
+  - `peekWithPriority()` return pair.
+- All heap-modifying operations (`push`, `pop`, `decreasePriority`) automatically update `indexMap`.
 
 Example (simulating Dijkstra on a min-heap):
 
 ```cpp
-HeapWithInc<int, int, std::less<int>> pq(6); // 6 vertices, min-heap
+HeapDecreasing<int> pq(6); // 6 vertices, min-heap
 pq.push(0, 0);   // vertex 0, distance 0
 pq.push(1000, 1); // vertex 1, distance "infinity"
 pq.increasePriorityByValue(1, 4); // decrease distance to 4 (in min-heap, increasing the number = lowering priority)

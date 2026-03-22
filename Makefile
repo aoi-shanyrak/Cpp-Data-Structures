@@ -16,11 +16,15 @@ $(BINDIR)/%: $(SRCDIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 test: $(TARGETS)
-	@for test in $(TARGETS); do \
-		echo "\n" \
-		echo "Running $$test..."; \
-		$$test; \
-	done
+	@set -e; \
+	for test in $(TARGETS); do \
+		echo "\nRunning $$test..."; \
+		if ! $$test; then \
+			echo "\nTest failed: $$test"; \
+			exit 1; \
+		fi; \
+	done; \
+	echo "\nAll tests are passed."
 
 clean:
 	rm -rf $(BINDIR)

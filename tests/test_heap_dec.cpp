@@ -3,13 +3,16 @@
 #include <string>
 #include <vector>
 
-#include "../headers/HeapWithInc.tpp"
+#include "../headers/Heap.tpp"
 
 using namespace aoi;
 
+using MaxHeapDec = HeapDecreasing<int, int, std::greater<int>>;
+using MinHeapDec = HeapDecreasing<int, int, std::less<int>>;
+
 void test_constructor_with_maxsize() {
   std::cout << "Testing constructor with maxSize... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
   assert(h.isEmpty());
   assert(h.size() == 0);
   std::cout << "passed\n";
@@ -17,7 +20,7 @@ void test_constructor_with_maxsize() {
 
 void test_basic_operations() {
   std::cout << "Testing basic operations... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
@@ -37,7 +40,7 @@ void test_basic_operations() {
 
 void test_contains_value() {
   std::cout << "Testing containsValue... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 2);
@@ -58,9 +61,9 @@ void test_contains_value() {
   std::cout << "passed\n";
 }
 
-void test_increase_priority_by_index() {
-  std::cout << "Testing increasePriority by index... ";
-  HeapWithInc<int> h(10);
+void test_decrease_priority_by_index() {
+  std::cout << "Testing decreasePriority by index... ";
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
@@ -76,7 +79,7 @@ void test_increase_priority_by_index() {
     idx++;
   }
 
-  h.increasePriority(idx, 10);
+  h.decreasePriority(idx, 10);
 
   // Now value 0 should be on top with priority 10
   assert(h.peek() == 0);
@@ -85,8 +88,8 @@ void test_increase_priority_by_index() {
 }
 
 void test_increase_priority_by_value() {
-  std::cout << "Testing increasePriorityByValue... ";
-  HeapWithInc<int> h(10);
+  std::cout << "Testing decreasePriorityByValue... ";
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
@@ -96,13 +99,13 @@ void test_increase_priority_by_value() {
   assert(h.peek() == 2);
 
   // Increase priority of value 1 to 15
-  h.increasePriorityByValue(1, 15);
+  h.decreasePriorityByValue(1, 15);
 
   // Now value 1 should be on top with priority 15
   assert(h.peek() == 1);
 
   // Increase priority of value 0 to 20
-  h.increasePriorityByValue(0, 20);
+  h.decreasePriorityByValue(0, 20);
 
   // Now value 0 should be on top with priority 20
   assert(h.peek() == 0);
@@ -111,8 +114,8 @@ void test_increase_priority_by_value() {
 }
 
 void test_increase_priority_maintains_heap_property() {
-  std::cout << "Testing that increasePriority maintains heap property... ";
-  HeapWithInc<int> h(20);
+  std::cout << "Testing that decreasePriority maintains heap property... ";
+  MaxHeapDec h(20);
 
   // Build a larger heap
   for (int i = 0; i < 10; ++i) {
@@ -120,7 +123,7 @@ void test_increase_priority_maintains_heap_property() {
   }
 
   // Increase priority of value 0 (lowest) to highest
-  h.increasePriorityByValue(0, 100);
+  h.decreasePriorityByValue(0, 100);
 
   // Should now be on top
   assert(h.peek() == 0);
@@ -132,15 +135,15 @@ void test_increase_priority_maintains_heap_property() {
   std::cout << "passed\n";
 }
 
-void test_increase_priority_exception_out_of_range() {
-  std::cout << "Testing increasePriority exception (out of range)... ";
-  HeapWithInc<int> h(10);
+void test_decrease_priority_exception_out_of_range() {
+  std::cout << "Testing decreasePriority exception (out of range)... ";
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
 
   try {
-    h.increasePriority(10, 100);  // Index 10 doesn't exist
+    h.decreasePriority(10, 100);  // Index 10 doesn't exist
     assert(false && "Should throw exception");
   } catch (const std::out_of_range& e) {
     // Expected
@@ -149,15 +152,15 @@ void test_increase_priority_exception_out_of_range() {
   std::cout << "passed\n";
 }
 
-void test_increase_priority_by_value_exception_not_in_heap() {
-  std::cout << "Testing increasePriorityByValue exception (not in heap)... ";
-  HeapWithInc<int> h(10);
+void test_decrease_priority_by_value_exception_not_in_heap() {
+  std::cout << "Testing decreasePriorityByValue exception (not in heap)... ";
+  MaxHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
 
   try {
-    h.increasePriorityByValue(5, 100);  // Value 5 not in heap
+    h.decreasePriorityByValue(5, 100);  // Value 5 not in heap
     assert(false && "Should throw exception");
   } catch (const std::runtime_error& e) {
     // Expected
@@ -168,7 +171,7 @@ void test_increase_priority_by_value_exception_not_in_heap() {
 
 void test_pop_updates_index_map() {
   std::cout << "Testing that pop updates indexMap... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
 
   h.push(10, 0);
   h.push(20, 1);
@@ -188,17 +191,17 @@ void test_pop_updates_index_map() {
 }
 
 void test_multiple_increase_operations() {
-  std::cout << "Testing multiple increase operations... ";
-  HeapWithInc<int> h(15);
+  std::cout << "Testing multiple decrease operations... ";
+  MaxHeapDec h(15);
 
   for (int i = 0; i < 10; ++i) {
     h.push(i, i);
   }
 
   // Increase several priorities
-  h.increasePriorityByValue(0, 50);
-  h.increasePriorityByValue(3, 45);
-  h.increasePriorityByValue(7, 40);
+  h.decreasePriorityByValue(0, 50);
+  h.decreasePriorityByValue(3, 45);
+  h.decreasePriorityByValue(7, 40);
 
   // Check order
   assert(h.peek() == 0);
@@ -212,10 +215,10 @@ void test_multiple_increase_operations() {
   std::cout << "passed\n";
 }
 
-void test_min_heap_with_increase() {
-  std::cout << "Testing min heap with increasePriority... ";
+void test_min_heap_with_decrease() {
+  std::cout << "Testing min heap with decreasePriority... ";
   // Min-heap: lower priority comes first
-  HeapWithInc<int, int, std::less<int>> h(10);
+  MinHeapDec h(10);
 
   h.push(5, 0);
   h.push(3, 1);
@@ -224,27 +227,23 @@ void test_min_heap_with_increase() {
   // Min heap: priority 3 (value 1) should be on top
   assert(h.peek() == 1);
 
-  // Note: in min-heap, "increase" actually means making priority smaller
-  // To make value 2 come first, we'd need to decrease its priority
-  // But the function is called "increasePriority" so it increases the numeric value
+  // For min-heap, improving priority means decreasing numeric value.
+  h.decreasePriorityByValue(0, 1);
 
-  // Increase priority of value 0 to 10
-  h.increasePriorityByValue(0, 10);
-
-  // In min-heap, this pushes it down, so value 1 (priority 3) is still on top
-  assert(h.peek() == 1);
+  // Value 0 should move to top (priority 1 is smallest)
+  assert(h.peek() == 0);
 
   std::cout << "passed\n";
 }
 
 void test_copy_constructor() {
   std::cout << "Testing copy constructor... ";
-  HeapWithInc<int> h1(10);
+  MaxHeapDec h1(10);
   h1.push(5, 0);
   h1.push(3, 1);
   h1.push(8, 2);
 
-  HeapWithInc<int> h2(h1);
+  MaxHeapDec h2(h1);
 
   assert(h2.size() == h1.size());
   assert(h2.peek() == h1.peek());
@@ -253,7 +252,7 @@ void test_copy_constructor() {
   assert(h2.containsValue(2));
 
   // Modify h2
-  h2.increasePriorityByValue(0, 100);
+  h2.decreasePriorityByValue(0, 100);
   assert(h2.peek() == 0);
 
   // h1 should be unchanged
@@ -264,13 +263,13 @@ void test_copy_constructor() {
 
 void test_move_constructor() {
   std::cout << "Testing move constructor... ";
-  HeapWithInc<int> h1(10);
+  MaxHeapDec h1(10);
   h1.push(5, 0);
   h1.push(3, 1);
   h1.push(8, 2);
 
   size_t old_size = h1.size();
-  HeapWithInc<int> h2(std::move(h1));
+  MaxHeapDec h2(std::move(h1));
 
   assert(h2.size() == old_size);
   assert(h2.peek() == 2);
@@ -283,7 +282,7 @@ void test_move_constructor() {
 
 void test_clear() {
   std::cout << "Testing clear... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
   h.push(5, 0);
   h.push(3, 1);
   h.push(8, 2);
@@ -298,7 +297,7 @@ void test_clear() {
 
 void test_peek_with_priority() {
   std::cout << "Testing peekWithPriority... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
 
   h.push(42, 0);
   h.push(17, 1);
@@ -319,7 +318,7 @@ void test_peek_with_priority() {
 
 void test_pop_with_priority() {
   std::cout << "Testing popWithPriority... ";
-  HeapWithInc<int> h(10);
+  MaxHeapDec h(10);
 
   h.push(42, 0);
   h.push(17, 1);
@@ -343,7 +342,7 @@ void test_pop_with_priority() {
 void test_dijkstra_like_scenario() {
   std::cout << "Testing Dijkstra-like scenario... ";
   // Simulate Dijkstra's algorithm usage with MIN heap (smaller distances first)
-  HeapWithInc<int, int, std::less<int>> pq(6);  // 6 vertices, min-heap
+  MinHeapDec pq(6);  // 6 vertices, min-heap
 
   // Initial distances (vertex 0 starts at 0, others at "infinity" = 1000)
   pq.push(0, 0);  // vertex 0, distance 0
@@ -358,9 +357,9 @@ void test_dijkstra_like_scenario() {
   // Update distances through vertex 0
   // Note: in min-heap, we need to set lower numeric values
   // Edge 0->1 with weight 4
-  pq.increasePriorityByValue(1, 4);
+  pq.decreasePriorityByValue(1, 4);
   // Edge 0->2 with weight 2
-  pq.increasePriorityByValue(2, 2);
+  pq.decreasePriorityByValue(2, 2);
 
   // Next vertex should be 2 (distance 2) - smallest distance
   assert(pq.peek() == 2);
@@ -370,7 +369,7 @@ void test_dijkstra_like_scenario() {
 
   // Update through vertex 2
   // Edge 2->3 with weight 3 (total: 2+3=5)
-  pq.increasePriorityByValue(3, 5);
+  pq.decreasePriorityByValue(3, 5);
 
   // Next should be vertex 1 (distance 4) - next smallest
   assert(pq.peek() == 1);
@@ -384,14 +383,14 @@ int main() {
   test_constructor_with_maxsize();
   test_basic_operations();
   test_contains_value();
-  test_increase_priority_by_index();
+  test_decrease_priority_by_index();
   test_increase_priority_by_value();
   test_increase_priority_maintains_heap_property();
-  test_increase_priority_exception_out_of_range();
-  test_increase_priority_by_value_exception_not_in_heap();
+  test_decrease_priority_exception_out_of_range();
+  test_decrease_priority_by_value_exception_not_in_heap();
   test_pop_updates_index_map();
   test_multiple_increase_operations();
-  test_min_heap_with_increase();
+  test_min_heap_with_decrease();
   test_copy_constructor();
   test_move_constructor();
   test_clear();
