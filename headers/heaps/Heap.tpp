@@ -54,19 +54,6 @@ namespace aoi {
     void push(P priority, const T& value) { push_impl(priority, value); }
     void push(P priority, T&& value) { push_impl(priority, std::move(value)); }
 
-    std::pair<P, T> popWithPriority() {
-      if (isEmpty()) throw std::runtime_error("Heap::popWithPriority(): heap is empty");
-      onElementRemoved(0);
-      auto top = std::move(data[0]);
-      data[0] = std::move(data.back());
-      data.pop_back();
-      if (!isEmpty()) {
-        onElementMovedOnTop();
-        heapDown(0);
-      }
-      return top;
-    }
-
     void pop() {
       if (isEmpty()) {
         throw std::runtime_error("Heap::pop(): heap is empty");

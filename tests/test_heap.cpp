@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "../headers/Heap.tpp"
+#include "../headers/heaps/Heap.tpp"
 
 using namespace aoi;
 

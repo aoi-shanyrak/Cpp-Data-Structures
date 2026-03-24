@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include "../headers/LinkedList.tpp"
+#include "../headers/list/LinkedList.tpp"
 
 using namespace aoi::Allocator;
 

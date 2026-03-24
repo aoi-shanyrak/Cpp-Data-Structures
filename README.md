@@ -76,6 +76,8 @@ This linked list also has his own allocator based on import allocator. So it red
 
 ## Building and Testing
 
+All tests are made by ai.
+
 ```bash
 make
 ```

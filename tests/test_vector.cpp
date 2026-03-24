@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include "../headers/Vector.tpp"
+#include "../headers/array/Vector.tpp"
 
 using namespace aoi;
 

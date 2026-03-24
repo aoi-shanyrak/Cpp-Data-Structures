@@ -1,6 +1,7 @@
-#include "headers/LinkedList.tpp"
 #include <cassert>
 #include <iostream>
+
+#include "headers/list/LinkedList.tpp"
 
 using namespace aoi;
 
