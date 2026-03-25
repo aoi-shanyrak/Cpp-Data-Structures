@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <stack>
@@ -169,7 +170,7 @@ namespace aoi {
       return new_data;
     }
 
-    void clear() {
+    void clear() noexcept {
       std::stack<Node*> clearStack;
       if (head) {
         clearStack.push(head);
@@ -239,6 +240,8 @@ namespace aoi {
     for (size_t i = 0; t1 or t2 or carry; ++i) {
       Node* t1_i {t1 and t1->degree == i ? t1 : nullptr};
       Node* t2_i {t2 and t2->degree == i ? t2 : nullptr};
+      Node* next_t1 {t1_i ? t1->sibling : t1};
+      Node* next_t2 {t2_i ? t2->sibling : t2};
       Node* r_i {nullptr};
 
       if (t1_i and t2_i and carry) {
@@ -271,8 +274,8 @@ namespace aoi {
         }
         r_i->sibling = nullptr;
       }
-      t1 = t1_i ? t1->sibling : t1;
-      t2 = t2_i ? t2->sibling : t2;
+      t1 = next_t1;
+      t2 = next_t2;
     }
     head = nullptr;
     other.head = nullptr;

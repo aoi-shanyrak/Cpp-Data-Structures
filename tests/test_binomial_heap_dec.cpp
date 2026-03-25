@@ -46,6 +46,7 @@ void test_peek_with_priority(const char* name, int expectedPriority, int expecte
 
 template <typename H>
 void test_handle_decrease_and_delete(const char* name, int improvedPriority, int expectedTop) {
+  std::cerr << "delete" << std::endl;
   H h;
   auto n0 = h.push(5, 0);
   auto n1 = h.push(3, 1);
