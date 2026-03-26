@@ -37,6 +37,12 @@ namespace aoi {
 
 
    public:
+    using value_type = T;
+    using priority_type = P;
+    using compare_type = Compare;
+    using allocator_type = A;
+    using Handle = NodeData*;
+
     explicit BinomialHeap(const Compare& comp = Compare(), const NodeAllocator& alloc = NodeAllocator(),
                           const NodeDataAllocator& dataAlloc = NodeDataAllocator())
         : head {nullptr}, comp {comp}, alloc {alloc}, dataAlloc {dataAlloc} {}
@@ -64,7 +70,7 @@ namespace aoi {
 
 
     std::pair<const T&, const P&> peekWithPriority() const {
-      if (isEmpty()) {
+      if (empty()) {
         throw std::runtime_error("BinomialHeap::peekWithPriority(): heap is empty");
       }
       Node* minNode = head;
@@ -92,17 +98,11 @@ namespace aoi {
     void merge(BinomialHeap& other);
 
     void delete_key(NodeData* node) {
-      if (isEmpty()) {
-        throw std::runtime_error("BinomialHeap::delete_key(): heap is empty");
-      }
-      P extremePriority = comp(std::numeric_limits<P>::max(), std::numeric_limits<P>::lowest())
-                              ? std::numeric_limits<P>::max()
-                              : std::numeric_limits<P>::lowest();
-      decreasePriority(node, extremePriority);
+      heapUp(node, true);
       pop();
     }
 
-    bool isEmpty() const { return head == nullptr; }
+    bool empty() const { return head == nullptr; }
 
 
    private:
@@ -120,8 +120,8 @@ namespace aoi {
       std::swap(a->data->node, b->data->node);
     }
 
-    void heapUp(Node* node) {
-      while (node->parent and higherPriority(comp, node, node->parent)) {
+    void heapUp(Node* node, bool alwaysSwap = false) {
+      while (node->parent and (higherPriority(comp, node, node->parent) or alwaysSwap)) {
         swapNodes(node, node->parent);
         node = node->parent;
       }
@@ -194,7 +194,7 @@ namespace aoi {
 
   template <typename T, typename P, typename Compare, typename A>
   void BinomialHeap<T, P, Compare, A>::pop() {
-    if (isEmpty()) {
+    if (empty()) {
       throw std::runtime_error("BinomialHeap::pop(): heap is empty");
     }
     Node* minNode = head;
