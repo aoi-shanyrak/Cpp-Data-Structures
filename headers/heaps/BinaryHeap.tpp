@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -50,10 +51,12 @@ namespace aoi {
 
     explicit BinaryHeap(const Compare& comp = Compare(), const Container& container = Container())
         : comp {comp}, data {container} {
-      indexMap.resize(data.size(), kInvalidIndex);
+      indexMap.clear();
       for (size_t i = 0; i < data.size(); ++i) {
-        data[i].id = i;
-        indexMap[i] = i;
+        const size_t id = nextGlobalId();
+        data[i].id = id;
+        ensureIndexMapSize(id);
+        indexMap[id] = i;
       }
       heapify();
     }
@@ -100,33 +103,16 @@ namespace aoi {
       if (this == &other) {
         return;
       }
-      size_t nextHandle = indexMap.size();
+
+      data.reserve(data.size() + other.data.size());
       for (auto& node : other.data) {
-        node.id = nextHandle++;
+        data.push_back(std::move(node));
+        const size_t idx = data.size() - 1;
+        ensureIndexMapSize(data[idx].id);
+        indexMap[data[idx].id] = idx;
       }
 
-      Container combined;
-      combined.reserve(data.size() + other.data.size());
-
-      for (auto& x : data) {
-        combined.push_back(std::move(x));
-      }
-      for (auto& x : other.data) {
-        combined.push_back(std::move(x));
-      }
-      data.clear();
       other.data.clear();
-
-      data = std::move(combined);
-      indexMap.clear();
-
-      for (size_t i = 0; i < data.size(); ++i) {
-        if (data[i].id >= indexMap.size()) {
-          indexMap.resize(data[i].id + 1, kInvalidIndex);
-        }
-        indexMap[data[i].id] = i;
-      }
-
       other.indexMap.clear();
       heapify();
     }
@@ -151,7 +137,14 @@ namespace aoi {
     bool empty() const noexcept { return data.empty(); }
     size_t size() const noexcept { return data.size(); }
 
-    void clear() noexcept { data.clear(); }
+    void clear() noexcept {
+      for (const auto& node : data) {
+        if (node.id < indexMap.size()) {
+          indexMap[node.id] = kInvalidIndex;
+        }
+      }
+      data.clear();
+    }
 
 
    private:
@@ -160,6 +153,17 @@ namespace aoi {
     std::vector<size_t> indexMap;
 
     static constexpr size_t kInvalidIndex = std::numeric_limits<size_t>::max();
+
+    static size_t nextGlobalId() {
+      static size_t nextId = 0;
+      return nextId++;
+    }
+
+    void ensureIndexMapSize(size_t id) {
+      if (id >= indexMap.size()) {
+        indexMap.resize(id + 1, kInvalidIndex);
+      }
+    }
 
 
     size_t resolveHandle(Handle handle, const char* message) const {
@@ -219,8 +223,9 @@ namespace aoi {
 
     template <typename U>
     Handle push_impl(P priority, U&& value) {
-      const size_t id = indexMap.size();
-      indexMap.push_back(kInvalidIndex);
+      const size_t id = nextGlobalId();
+      ensureIndexMapSize(id);
+      indexMap[id] = kInvalidIndex;
 
       data.emplace_back(priority, std::forward<U>(value), id);
       indexMap[id] = data.size() - 1;

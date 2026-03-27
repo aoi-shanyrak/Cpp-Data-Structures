@@ -104,6 +104,28 @@ void test_merge_and_clear(const char* name, int expectedTopAfterMerge) {
 }
 
 template <typename H>
+void test_merge_preserves_other_handles(const char* name, int improvedPriority, int expectedTopAfterImproveFromOther) {
+  std::cout << "Testing merge handle stability (" << name << ")... ";
+  H a;
+  H b;
+
+  a.push(10, 10);
+  auto fromOther1 = b.push(30, 30);
+  auto fromOther2 = b.push(20, 20);
+
+  a.merge(b);
+  assert(b.empty());
+
+  // Handle returned by 'b' must still refer to the same node after merge into 'a'.
+  a.decreasePriority(fromOther2, improvedPriority);
+  assert(a.peek() == expectedTopAfterImproveFromOther);
+
+  a.delete_key(fromOther1);
+  assert(a.size() == 2);
+  std::cout << "passed\n";
+}
+
+template <typename H>
 void test_exceptions(const char* name) {
   std::cout << "Testing exceptions (" << name << ")... ";
 
@@ -145,20 +167,21 @@ void test_exceptions(const char* name) {
 template <typename H>
 void run_suite(const char* name, const std::vector<int>& expectedOrder, int improvedPriority,
                int expectedTopAfterImprove, int expectedPriorityForPeek, int expectedTopAfterDelete,
-               int expectedTopAfterMerge) {
+               int expectedTopAfterMerge, int mergeImprovedPriority, int expectedTopAfterImproveFromOther) {
   test_push_pop_order<H>(name, expectedOrder);
   test_peek_with_priority<H>(name, expectedPriorityForPeek, 5);
   test_decrease_by_handle<H>(name, improvedPriority, expectedTopAfterImprove);
   test_delete_key<H>(name, expectedTopAfterDelete);
   test_merge_and_clear<H>(name, expectedTopAfterMerge);
+  test_merge_preserves_other_handles<H>(name, mergeImprovedPriority, expectedTopAfterImproveFromOther);
   test_exceptions<H>(name);
 }
 
 int main() {
   std::cout << "=== BinaryHeap Handle API Test Suite ===\n\n";
 
-  run_suite<MaxHeap>("BinaryHeap/max", {2, 3, 0, 1}, 20, 0, 120, 2, 4);
-  run_suite<MinHeap>("BinaryHeap/min", {1, 0, 3, 2}, 1, 0, 1, 0, 1);
+  run_suite<MaxHeap>("BinaryHeap/max", {2, 3, 0, 1}, 20, 0, 120, 2, 4, 40, 20);
+  run_suite<MinHeap>("BinaryHeap/min", {1, 0, 3, 2}, 1, 0, 1, 0, 1, 1, 20);
 
   std::cout << "\n=== BinaryHeap handle tests passed! ===\n";
   return 0;
