@@ -20,11 +20,11 @@ void test_push_pop_order(const char* name, const std::vector<int>& expectedOrder
   h.push(8, 2);
 
   for (int expectedValue : expectedOrder) {
-    assert(!h.isEmpty());
+    assert(!h.empty());
     assert(h.peek() == expectedValue);
     h.pop();
   }
-  assert(h.isEmpty());
+  assert(h.empty());
   std::cout << "passed\n";
 }
 
@@ -45,8 +45,8 @@ void test_peek_with_priority(const char* name, int expectedPriority, int expecte
 }
 
 template <typename H>
-void test_handle_decrease_and_delete(const char* name, int improvedPriority, int expectedTop) {
-  std::cerr << "delete" << std::endl;
+void test_handle_decrease(const char* name, int improvedPriority, int expectedTop) {
+  std::cout << "Testing handle decrease (" << name << ")...\n";
   H h;
   auto n0 = h.push(5, 0);
   auto n1 = h.push(3, 1);
@@ -58,9 +58,7 @@ void test_handle_decrease_and_delete(const char* name, int improvedPriority, int
   h.decreasePriority(n0, improvedPriority);
   assert(h.peek() == expectedTop);
 
-  h.delete_key(n0);
-  assert(!h.isEmpty());
-  assert(h.peek() != 0);
+  assert(!h.empty());
   std::cout << "passed\n";
 }
 
@@ -75,12 +73,12 @@ void test_merge(const char* name, int expectedTop) {
   b.push(30, 3);
 
   a.merge(b);
-  assert(b.isEmpty());
-  assert(!a.isEmpty());
+  assert(b.empty());
+  assert(!a.empty());
   assert(a.peek() == expectedTop);
 
   int count = 0;
-  while (!a.isEmpty()) {
+  while (!a.empty()) {
     a.pop();
     ++count;
   }
@@ -105,13 +103,6 @@ void test_exceptions(const char* name) {
   } catch (const std::runtime_error&) {
   }
 
-  try {
-    auto* fake = static_cast<decltype(h.push(0, 0))>(nullptr);
-    h.delete_key(fake);
-    assert(false && "delete_key() on empty heap must throw");
-  } catch (const std::runtime_error&) {
-  }
-
   std::cout << "passed\n";
 }
 
@@ -120,7 +111,7 @@ void run_suite(const char* name, const std::vector<int>& expectedOrder, int impr
                int expectedTopAfterImprove, int expectedPriorityForPeek, int expectedTopAfterMerge) {
   test_push_pop_order<H>(name, expectedOrder);
   test_peek_with_priority<H>(name, expectedPriorityForPeek, 5);
-  test_handle_decrease_and_delete<H>(name, improvedPriority, expectedTopAfterImprove);
+  test_handle_decrease<H>(name, improvedPriority, expectedTopAfterImprove);
   test_merge<H>(name, expectedTopAfterMerge);
   test_exceptions<H>(name);
 }

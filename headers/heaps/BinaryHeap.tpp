@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
-#include <memory>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -25,69 +23,124 @@ namespace aoi {
       return (index - 1) / 2;
     }
 
+    template <typename T, typename P>
+    struct Node {
+      P priority;
+      T value;
+      size_t id;
+
+      Node(P p, const T& v, size_t nodeId) : priority {std::move(p)}, value {v}, id {nodeId} {}
+      Node(P p, T&& v, size_t nodeId) : priority {std::move(p)}, value {std::move(v)}, id {nodeId} {}
+    };
+
   }
 
   template <typename T, typename P = int32_t, typename Compare = std::less<P>,
-            typename Container = std::vector<std::pair<P, T>>>
-  class Heap {
+            typename Container = std::vector<details::Node<T, P>>>
+  class BinaryHeap {
 
    public:
     using value_type = T;
     using priority_type = P;
     using compare_type = Compare;
-    using allocator_type = A;
+    using Handle = size_t;
 
     using iterator = typename Container::iterator;
     using const_iterator = typename Container::const_iterator;
 
-    Heap() = default;
-    Heap(const Heap&) = default;
-    Heap(Heap&&) noexcept = default;
-    Heap& operator=(const Heap&) = default;
-    Heap& operator=(Heap&&) noexcept = default;
-    virtual ~Heap() = default;
+    explicit BinaryHeap(const Compare& comp = Compare(), const Container& container = Container())
+        : comp {comp}, data {container} {
+      indexMap.resize(data.size(), kInvalidIndex);
+      for (size_t i = 0; i < data.size(); ++i) {
+        data[i].id = i;
+        indexMap[i] = i;
+      }
+      heapify();
+    }
+    BinaryHeap(const BinaryHeap&) = delete;
+    BinaryHeap& operator=(const BinaryHeap&) = delete;
+
+    BinaryHeap(BinaryHeap&&) noexcept = default;
+    BinaryHeap& operator=(BinaryHeap&&) noexcept = default;
+    ~BinaryHeap() = default;
 
     const T& peek() const {
-      if (isEmpty()) throw std::runtime_error("Heap::peek(): heap is empty");
-      return data[0].second;
+      if (empty()) throw std::runtime_error("BinaryHeap::peek(): heap is empty");
+      return data[0].value;
     }
     std::pair<const T&, const P&> peekWithPriority() const {
-      if (isEmpty()) throw std::runtime_error("Heap::peekWithPriority(): heap is empty");
-      return data[0];
+      if (empty()) throw std::runtime_error("BinaryHeap::peekWithPriority(): heap is empty");
+      return {data[0].value, data[0].priority};
     }
 
-    void push(P priority, const T& value) { push_impl(priority, value); }
-    void push(P priority, T&& value) { push_impl(priority, std::move(value)); }
+    Handle push(P priority, const T& value) { return push_impl(priority, value); }
+    Handle push(P priority, T&& value) { return push_impl(priority, std::move(value)); }
 
     void pop() {
-      if (isEmpty()) {
-        throw std::runtime_error("Heap::pop(): heap is empty");
+      if (empty()) {
+        throw std::runtime_error("BinaryHeap::pop(): heap is empty");
       }
+      const size_t removedId = data[0].id;
+      indexMap[removedId] = kInvalidIndex;
+
+      if (data.size() == 1) {
+        data.pop_back();
+        return;
+      }
+
       data[0] = std::move(data.back());
       data.pop_back();
-      if (!isEmpty()) {
+      indexMap[data[0].id] = 0;
+      if (!empty()) {
         heapDown(0);
       }
     }
 
-    void merge(Heap& other) {
+    void merge(BinaryHeap& other) {
       if (this == &other) {
         return;
       }
+      size_t nextHandle = indexMap.size();
+      for (auto& node : other.data) {
+        node.id = nextHandle++;
+      }
+
       Container combined;
       combined.reserve(data.size() + other.data.size());
 
       for (auto& x : data) {
-        combined.push_back(x);
+        combined.push_back(std::move(x));
       }
       for (auto& x : other.data) {
-        combined.push_back(x);
+        combined.push_back(std::move(x));
       }
       data.clear();
       other.data.clear();
 
       data = std::move(combined);
+      indexMap.clear();
+
+      for (size_t i = 0; i < data.size(); ++i) {
+        if (data[i].id >= indexMap.size()) {
+          indexMap.resize(data[i].id + 1, kInvalidIndex);
+        }
+        indexMap[data[i].id] = i;
+      }
+
+      other.indexMap.clear();
       heapify();
+    }
+
+    void decreasePriority(Handle node, priority_type newPriority) {
+      const size_t index = resolveHandle(node, "BinaryHeap::decreasePriority(): invalid node handle");
+      data[index].priority = newPriority;
+      heapUp(index);
+    }
+
+    void delete_key(Handle node) {
+      const size_t index = resolveHandle(node, "BinaryHeap::delete_key(): invalid node handle");
+      heapUp(index, true);
+      pop();
     }
 
     iterator begin() noexcept { return data.begin(); }
@@ -95,20 +148,36 @@ namespace aoi {
     const_iterator begin() const noexcept { return data.begin(); }
     const_iterator end() const noexcept { return data.end(); }
 
-    bool isEmpty() const noexcept { return data.empty(); }
+    bool empty() const noexcept { return data.empty(); }
     size_t size() const noexcept { return data.size(); }
 
-    virtual void clear() noexcept { data.clear(); }
+    void clear() noexcept { data.clear(); }
 
 
-   protected:
+   private:
     Compare comp;
     Container data;
+    std::vector<size_t> indexMap;
 
-    virtual void swapIndices(size_t i, size_t j) { std::swap(data[i], data[j]); }
+    static constexpr size_t kInvalidIndex = std::numeric_limits<size_t>::max();
 
-    bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].first, data[b].first))) {
-      return comp(data[a].first, data[b].first);
+
+    size_t resolveHandle(Handle handle, const char* message) const {
+      if (handle >= indexMap.size() || indexMap[handle] == kInvalidIndex || indexMap[handle] >= data.size()) {
+        throw std::out_of_range(message);
+      }
+      return indexMap[handle];
+    }
+
+
+    void swapIndices(size_t i, size_t j) {
+      std::swap(data[i], data[j]);
+      indexMap[data[i].id] = i;
+      indexMap[data[j].id] = j;
+    }
+
+    bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].priority, data[b].priority))) {
+      return comp(data[a].priority, data[b].priority);
     }
 
     void heapify() {
@@ -118,10 +187,10 @@ namespace aoi {
       }
     }
 
-    void heapUp(size_t i) {
+    void heapUp(size_t i, bool alwaysSwap = false) {
       while (i > 0) {
         size_t p = details::HeapParent(i);
-        if (higherPriority(i, p)) {
+        if (higherPriority(i, p) or alwaysSwap) {
           swapIndices(i, p);
           i = p;
         } else
@@ -149,46 +218,21 @@ namespace aoi {
     }
 
     template <typename U>
-    void push_impl(P priority, U&& value) {
-      size_t newIndex = data.size();
-      data.emplace_back(priority, std::forward<U>(value));
+    Handle push_impl(P priority, U&& value) {
+      const size_t id = indexMap.size();
+      indexMap.push_back(kInvalidIndex);
+
+      data.emplace_back(priority, std::forward<U>(value), id);
+      indexMap[id] = data.size() - 1;
       try {
-        heapUp(newIndex);
+        heapUp(data.size() - 1);
       } catch (...) {
+        indexMap[id] = kInvalidIndex;
         data.pop_back();
         throw;
       }
+      return id;
     }
   };
 
-
-  template <typename T, typename P = int32_t, typename Compare = std::less<P>,
-            typename Container = std::vector<std::pair<P, T>>>
-  class HeapDecreasing : public Heap<T, P, Compare, Container> {
-    using Base = Heap<T, P, Compare, Container>;
-
-   public:
-    using Handle = std::pair<P, T>*;
-
-    HeapDecreasing() = default;
-    HeapDecreasing(const HeapDecreasing&) = default;
-    HeapDecreasing(HeapDecreasing&&) noexcept = default;
-    HeapDecreasing& operator=(const HeapDecreasing&) = default;
-    HeapDecreasing& operator=(HeapDecreasing&&) noexcept = default;
-    ~HeapDecreasing() = default;
-
-    void push(P priority, const T& value) = delete;
-    void push(P priority, T&& value) = delete;
-
-    void clear() noexcept override {
-      Base::clear();
-      ptrMap.clear();
-    }
-
-
-   private:
-    std::vector<Handle> ptrMap;
-
-    void push_impl(P priority, U&& value) = delete;
-  };
 }

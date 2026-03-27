@@ -2,12 +2,8 @@
 
 #include <cstdint>
 #include <functional>
-#include <limits>
-#include <memory>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
-#include <vector>
 
 namespace aoi {
 
@@ -35,7 +31,6 @@ namespace aoi {
     using value_type = T;
     using priority_type = P;
     using compare_type = Compare;
-    using allocator_type = A;
 
     using iterator = typename Container::iterator;
     using const_iterator = typename Container::const_iterator;
