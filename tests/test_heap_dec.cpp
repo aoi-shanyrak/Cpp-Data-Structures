@@ -143,20 +143,24 @@ void test_exceptions(const char* name) {
   }
 
   try {
-    h.delete_key(123);
+    size_t fake = 123;
+    h.delete_key(&fake);
     assert(false && "delete_key() for absent handle must throw");
   } catch (const std::out_of_range&) {
   }
 
   auto n0 = h.push(5, 0);
+  (void)n0;
   try {
-    h.delete_key(n0 + 42);
+    size_t fake = 42;
+    h.delete_key(&fake);
     assert(false && "delete_key() for invalid handle must throw");
   } catch (const std::out_of_range&) {
   }
 
   try {
-    h.decreasePriority(n0 + 42, 1);
+    size_t fake = 42;
+    h.decreasePriority(&fake, 1);
     assert(false && "decreasePriority() out of range must throw");
   } catch (const std::out_of_range&) {
   }

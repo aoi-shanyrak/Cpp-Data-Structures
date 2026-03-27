@@ -28,10 +28,10 @@ namespace aoi {
     struct Node {
       P priority;
       T value;
-      size_t id;
+      size_t* handle;
 
-      Node(P p, const T& v, size_t nodeId) : priority {std::move(p)}, value {v}, id {nodeId} {}
-      Node(P p, T&& v, size_t nodeId) : priority {std::move(p)}, value {std::move(v)}, id {nodeId} {}
+      Node(P p, const T& v, size_t* h) : priority {std::move(p)}, value {v}, handle {h} {}
+      Node(P p, T&& v, size_t* h) : priority {std::move(p)}, value {std::move(v)}, handle {h} {}
     };
 
   }
@@ -44,19 +44,15 @@ namespace aoi {
     using value_type = T;
     using priority_type = P;
     using compare_type = Compare;
-    using Handle = size_t;
+    using Handle = size_t*;
 
     using iterator = typename Container::iterator;
     using const_iterator = typename Container::const_iterator;
 
     explicit BinaryHeap(const Compare& comp = Compare(), const Container& container = Container())
         : comp {comp}, data {container} {
-      indexMap.clear();
       for (size_t i = 0; i < data.size(); ++i) {
-        const size_t id = nextGlobalId();
-        data[i].id = id;
-        ensureIndexMapSize(id);
-        indexMap[id] = i;
+        data[i].handle = new size_t(i);
       }
       heapify();
     }
@@ -65,7 +61,13 @@ namespace aoi {
 
     BinaryHeap(BinaryHeap&&) noexcept = default;
     BinaryHeap& operator=(BinaryHeap&&) noexcept = default;
-    ~BinaryHeap() = default;
+    ~BinaryHeap() {
+      clear();
+      for (Handle h : retiredHandles) {
+        delete h;
+      }
+      retiredHandles.clear();
+    }
 
     const T& peek() const {
       if (empty()) throw std::runtime_error("BinaryHeap::peek(): heap is empty");
@@ -83,17 +85,12 @@ namespace aoi {
       if (empty()) {
         throw std::runtime_error("BinaryHeap::pop(): heap is empty");
       }
-      const size_t removedId = data[0].id;
-      indexMap[removedId] = kInvalidIndex;
-
-      if (data.size() == 1) {
-        data.pop_back();
-        return;
+      const size_t last = data.size() - 1;
+      if (last != 0) {
+        swapIndices(0, last);
       }
-
-      data[0] = std::move(data.back());
+      retireNodeHandle(last);
       data.pop_back();
-      indexMap[data[0].id] = 0;
       if (!empty()) {
         heapDown(0);
       }
@@ -103,17 +100,15 @@ namespace aoi {
       if (this == &other) {
         return;
       }
-
       data.reserve(data.size() + other.data.size());
       for (auto& node : other.data) {
         data.push_back(std::move(node));
         const size_t idx = data.size() - 1;
-        ensureIndexMapSize(data[idx].id);
-        indexMap[data[idx].id] = idx;
+        if (data[idx].handle) {
+          *data[idx].handle = idx;
+        }
       }
-
       other.data.clear();
-      other.indexMap.clear();
       heapify();
     }
 
@@ -138,10 +133,8 @@ namespace aoi {
     size_t size() const noexcept { return data.size(); }
 
     void clear() noexcept {
-      for (const auto& node : data) {
-        if (node.id < indexMap.size()) {
-          indexMap[node.id] = kInvalidIndex;
-        }
+      for (size_t i = 0; i < data.size(); ++i) {
+        retireNodeHandle(i);
       }
       data.clear();
     }
@@ -150,34 +143,41 @@ namespace aoi {
    private:
     Compare comp;
     Container data;
-    std::vector<size_t> indexMap;
+    std::vector<Handle> retiredHandles;
 
-    static constexpr size_t kInvalidIndex = std::numeric_limits<size_t>::max();
+    static constexpr size_t InvalidIndex = std::numeric_limits<size_t>::max();
 
-    static size_t nextGlobalId() {
-      static size_t nextId = 0;
-      return nextId++;
-    }
 
-    void ensureIndexMapSize(size_t id) {
-      if (id >= indexMap.size()) {
-        indexMap.resize(id + 1, kInvalidIndex);
+    void retireNodeHandle(size_t index) noexcept {
+      Handle h = data[index].handle;
+      if (!h) {
+        return;
       }
+      *h = InvalidIndex;
+      retiredHandles.push_back(h);
+      data[index].handle = nullptr;
     }
 
 
     size_t resolveHandle(Handle handle, const char* message) const {
-      if (handle >= indexMap.size() || indexMap[handle] == kInvalidIndex || indexMap[handle] >= data.size()) {
+      if (handle == nullptr) {
         throw std::out_of_range(message);
       }
-      return indexMap[handle];
+      const size_t index = *handle;
+      if (index == InvalidIndex || index >= data.size()) {
+        throw std::out_of_range(message);
+      }
+      if (data[index].handle == nullptr || data[index].handle != handle) {
+        throw std::out_of_range(message);
+      }
+      return index;
     }
 
 
     void swapIndices(size_t i, size_t j) {
       std::swap(data[i], data[j]);
-      indexMap[data[i].id] = i;
-      indexMap[data[j].id] = j;
+      *data[i].handle = i;
+      *data[j].handle = j;
     }
 
     bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].priority, data[b].priority))) {
@@ -223,20 +223,23 @@ namespace aoi {
 
     template <typename U>
     Handle push_impl(P priority, U&& value) {
-      const size_t id = nextGlobalId();
-      ensureIndexMapSize(id);
-      indexMap[id] = kInvalidIndex;
+      const size_t index = data.size();
+      Handle h = new size_t(index);
 
-      data.emplace_back(priority, std::forward<U>(value), id);
-      indexMap[id] = data.size() - 1;
       try {
-        heapUp(data.size() - 1);
+        data.emplace_back(priority, std::forward<U>(value), h);
       } catch (...) {
-        indexMap[id] = kInvalidIndex;
+        delete h;
+        throw;
+      }
+      try {
+        heapUp(index);
+      } catch (...) {
+        retireNodeHandle(data.size() - 1);
         data.pop_back();
         throw;
       }
-      return id;
+      return h;
     }
   };
 
