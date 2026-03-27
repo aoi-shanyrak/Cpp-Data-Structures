@@ -45,7 +45,7 @@ namespace aoi {
     Heap(Heap&&) noexcept = default;
     Heap& operator=(const Heap&) = default;
     Heap& operator=(Heap&&) noexcept = default;
-    virtual ~Heap() = default;
+    ~Heap() = default;
 
     const T& peek() const {
       if (isEmpty()) throw std::runtime_error("Heap::peek(): heap is empty");
@@ -98,14 +98,12 @@ namespace aoi {
     bool isEmpty() const noexcept { return data.empty(); }
     size_t size() const noexcept { return data.size(); }
 
-    virtual void clear() noexcept { data.clear(); }
+    void clear() noexcept { data.clear(); }
 
 
    protected:
     Compare comp;
     Container data;
-
-    virtual void swapIndices(size_t i, size_t j) { std::swap(data[i], data[j]); }
 
     bool higherPriority(size_t a, size_t b) const noexcept(noexcept(comp(data[a].first, data[b].first))) {
       return comp(data[a].first, data[b].first);
@@ -122,7 +120,7 @@ namespace aoi {
       while (i > 0) {
         size_t p = details::HeapParent(i);
         if (higherPriority(i, p)) {
-          swapIndices(i, p);
+          std::swap(i, p);
           i = p;
         } else
           break;
@@ -143,7 +141,7 @@ namespace aoi {
         }
         if (best == i) break;
 
-        swapIndices(i, best);
+        std::swap(i, best);
         i = best;
       }
     }
