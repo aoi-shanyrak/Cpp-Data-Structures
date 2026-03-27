@@ -161,4 +161,34 @@ namespace aoi {
     }
   };
 
+
+  template <typename T, typename P = int32_t, typename Compare = std::less<P>,
+            typename Container = std::vector<std::pair<P, T>>>
+  class HeapDecreasing : public Heap<T, P, Compare, Container> {
+    using Base = Heap<T, P, Compare, Container>;
+
+   public:
+    using Handle = std::pair<P, T>*;
+
+    HeapDecreasing() = default;
+    HeapDecreasing(const HeapDecreasing&) = default;
+    HeapDecreasing(HeapDecreasing&&) noexcept = default;
+    HeapDecreasing& operator=(const HeapDecreasing&) = default;
+    HeapDecreasing& operator=(HeapDecreasing&&) noexcept = default;
+    ~HeapDecreasing() = default;
+
+    void push(P priority, const T& value) = delete;
+    void push(P priority, T&& value) = delete;
+
+    void clear() noexcept override {
+      Base::clear();
+      ptrMap.clear();
+    }
+
+
+   private:
+    std::vector<Handle> ptrMap;
+
+    void push_impl(P priority, U&& value) = delete;
+  };
 }
