@@ -1,13 +1,10 @@
 #pragma once
 
 #include <cstdint>
-#include <iostream>
-#include <limits>
 #include <memory>
 #include <stack>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 namespace aoi {
 
@@ -156,11 +153,7 @@ namespace aoi {
 
     template <typename U>
     NodeData* push_impl(P priority, U&& value) {
-      NodeData* new_data = std::allocator_traits<NodeDataAllocator>::allocate(dataAlloc, 1);
-      std::allocator_traits<NodeDataAllocator>::construct(dataAlloc, new_data, priority, std::forward<U>(value));
-
-      Node* new_node = std::allocator_traits<NodeAllocator>::allocate(alloc, 1);
-      std::allocator_traits<NodeAllocator>::construct(alloc, new_node, new_data);
+      auto [new_node, new_data] = create_node(priority, std::forward<U>(value));
 
       new_data->node = new_node;
 
@@ -181,13 +174,27 @@ namespace aoi {
         if (current->child) clearStack.push(current->child);
         if (current->sibling) clearStack.push(current->sibling);
 
-        std::allocator_traits<NodeDataAllocator>::destroy(dataAlloc, current->data);
-        std::allocator_traits<NodeDataAllocator>::deallocate(dataAlloc, current->data, 1);
-
-        std::allocator_traits<NodeAllocator>::destroy(alloc, current);
-        std::allocator_traits<NodeAllocator>::deallocate(alloc, current, 1);
+        delete_node(current);
       }
       head = nullptr;
+    }
+
+    template <typename U>
+    std::pair<Node*, NodeData*> create_node(P priority, U&& value) {
+      NodeData* new_data = std::allocator_traits<NodeDataAllocator>::allocate(dataAlloc, 1);
+      std::allocator_traits<NodeDataAllocator>::construct(dataAlloc, new_data, priority, std::forward<U>(value));
+
+      Node* new_node = std::allocator_traits<NodeAllocator>::allocate(alloc, 1);
+      std::allocator_traits<NodeAllocator>::construct(alloc, new_node, new_data);
+
+      return {new_node, new_data};
+    }
+
+    void delete_node(Node* node) {
+      std::allocator_traits<NodeDataAllocator>::destroy(dataAlloc, node->data);
+      std::allocator_traits<NodeDataAllocator>::deallocate(dataAlloc, node->data, 1);
+      std::allocator_traits<NodeAllocator>::destroy(alloc, node);
+      std::allocator_traits<NodeAllocator>::deallocate(alloc, node, 1);
     }
   };
 
@@ -222,10 +229,7 @@ namespace aoi {
     childHeap.head = reverseChilds(childs);
     merge(childHeap);
 
-    std::allocator_traits<NodeDataAllocator>::destroy(dataAlloc, minNode->data);
-    std::allocator_traits<NodeDataAllocator>::deallocate(dataAlloc, minNode->data, 1);
-    std::allocator_traits<NodeAllocator>::destroy(alloc, minNode);
-    std::allocator_traits<NodeAllocator>::deallocate(alloc, minNode, 1);
+    delete_node(minNode);
   }
 
   template <typename T, typename P, typename Compare, typename A>

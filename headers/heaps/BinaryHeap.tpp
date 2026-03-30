@@ -158,7 +158,6 @@ namespace aoi {
       data[index].handle = nullptr;
     }
 
-
     size_t resolveHandle(Handle handle, const char* message) const {
       if (handle == nullptr) {
         throw std::out_of_range(message);
@@ -172,7 +171,6 @@ namespace aoi {
       }
       return index;
     }
-
 
     void swapIndices(size_t i, size_t j) {
       std::swap(data[i], data[j]);
