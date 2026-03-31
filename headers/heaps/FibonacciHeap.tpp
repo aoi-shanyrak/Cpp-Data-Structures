@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <stack>
 #include <stdexcept>
@@ -26,6 +27,7 @@ namespace aoi {
             marked {false} {}
     };
     using NodeAllocator = typename std::allocator_traits<A>::template rebind_alloc<Node>;
+    using NodeAllocatorTraits = std::allocator_traits<NodeAllocator>;
 
 
    public:
@@ -189,14 +191,14 @@ namespace aoi {
 
     template <typename U>
     Node* create_node(P priority, U&& value) {
-      Node* new_node = std::allocator_traits<NodeAllocator>::allocate(alloc, 1);
-      std::allocator_traits<NodeAllocator>::construct(alloc, new_node, priority, std::forward<U>(value));
+      Node* new_node = NodeAllocatorTraits::allocate(alloc, 1);
+      NodeAllocatorTraits::construct(alloc, new_node, priority, std::forward<U>(value));
       return new_node;
     }
 
     void delete_node(Node* node) {
-      std::allocator_traits<NodeAllocator>::destroy(alloc, node);
-      std::allocator_traits<NodeAllocator>::deallocate(alloc, node, 1);
+      NodeAllocatorTraits::destroy(alloc, node);
+      NodeAllocatorTraits::deallocate(alloc, node, 1);
     }
   };
 

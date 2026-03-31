@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <stack>
 #include <stdexcept>
@@ -31,6 +32,9 @@ namespace aoi {
 
     using NodeDataAllocator = typename std::allocator_traits<A>::template rebind_alloc<NodeData>;
     using NodeAllocator = typename std::allocator_traits<A>::template rebind_alloc<Node>;
+
+    using NodeDataAllocatorTraits = std::allocator_traits<NodeDataAllocator>;
+    using NodeAllocatorTraits = std::allocator_traits<NodeAllocator>;
 
 
    public:
@@ -181,20 +185,20 @@ namespace aoi {
 
     template <typename U>
     std::pair<Node*, NodeData*> create_node(P priority, U&& value) {
-      NodeData* new_data = std::allocator_traits<NodeDataAllocator>::allocate(dataAlloc, 1);
-      std::allocator_traits<NodeDataAllocator>::construct(dataAlloc, new_data, priority, std::forward<U>(value));
+      NodeData* new_data = NodeDataAllocatorTraits::allocate(dataAlloc, 1);
+      NodeDataAllocatorTraits::construct(dataAlloc, new_data, priority, std::forward<U>(value));
 
-      Node* new_node = std::allocator_traits<NodeAllocator>::allocate(alloc, 1);
-      std::allocator_traits<NodeAllocator>::construct(alloc, new_node, new_data);
+      Node* new_node = NodeAllocatorTraits::allocate(alloc, 1);
+      NodeAllocatorTraits::construct(alloc, new_node, new_data);
 
       return {new_node, new_data};
     }
 
     void delete_node(Node* node) {
-      std::allocator_traits<NodeDataAllocator>::destroy(dataAlloc, node->data);
-      std::allocator_traits<NodeDataAllocator>::deallocate(dataAlloc, node->data, 1);
-      std::allocator_traits<NodeAllocator>::destroy(alloc, node);
-      std::allocator_traits<NodeAllocator>::deallocate(alloc, node, 1);
+      NodeDataAllocatorTraits::destroy(dataAlloc, node->data);
+      NodeDataAllocatorTraits::deallocate(dataAlloc, node->data, 1);
+      NodeAllocatorTraits::destroy(alloc, node);
+      NodeAllocatorTraits::deallocate(alloc, node, 1);
     }
   };
 

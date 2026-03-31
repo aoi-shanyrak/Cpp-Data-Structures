@@ -9,15 +9,13 @@ namespace aoi {
 
   namespace details {
 
-    inline size_t HeapLeftChild(size_t index) {
+    inline constexpr size_t HeapLeftChild(size_t index) {
       return 2 * index + 1;
     }
-
-    inline size_t HeapRightChild(size_t index) {
+    inline constexpr size_t HeapRightChild(size_t index) {
       return 2 * index + 2;
     }
-
-    inline size_t HeapParent(size_t index) {
+    inline constexpr size_t HeapParent(size_t index) {
       return (index - 1) / 2;
     }
 
