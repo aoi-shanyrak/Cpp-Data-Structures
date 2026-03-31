@@ -4,6 +4,7 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace aoi {
 
@@ -28,8 +29,7 @@ namespace aoi {
       bool marked;
 
       Node(NodeData* data)
-          : data {data}, parent {nullptr}, child {nullptr}, left {nullptr}, right {nullptr}, degree {0},
-            marked {false} {}
+          : data {data}, parent {nullptr}, child {nullptr}, left {this}, right {this}, degree {0}, marked {false} {}
     };
 
     using NodeDataAllocator = typename std::allocator_traits<A>::template rebind_alloc<NodeData>;
@@ -44,28 +44,27 @@ namespace aoi {
 
     explicit FibonacciHeap(const Compare& comp = Compare(), const NodeAllocator& alloc = NodeAllocator(),
                            const NodeDataAllocator& dataAlloc = NodeDataAllocator())
-        : head {nullptr}, tail {nullptr}, min {nullptr}, comp {comp}, alloc {alloc}, dataAlloc {dataAlloc} {}
+        : head {nullptr}, min {nullptr}, comp {comp}, alloc {alloc}, dataAlloc {dataAlloc} {}
 
     FibonacciHeap(const FibonacciHeap&) = delete;
     FibonacciHeap& operator=(const FibonacciHeap&) = delete;
 
     FibonacciHeap(FibonacciHeap&& other) noexcept
-        : head {other.head}, tail {other.tail}, min {other.min}, comp {std::move(other.comp)},
-          alloc {std::move(other.alloc)}, dataAlloc {std::move(other.dataAlloc)} {
+        : head {other.head}, min {other.min}, comp {std::move(other.comp)}, alloc {std::move(other.alloc)},
+          dataAlloc {std::move(other.dataAlloc)} {
       other.head = nullptr;
-      other.tail = nullptr;
       other.min = nullptr;
     }
     FibonacciHeap& operator=(FibonacciHeap&& other) noexcept {
       if (this != &other) {
         clear();
         head = other.head;
-        tail = other.tail;
         min = other.min;
         comp = std::move(other.comp);
         alloc = std::move(other.alloc);
         dataAlloc = std::move(other.dataAlloc);
         other.head = nullptr;
+        other.min = nullptr;
       }
       return *this;
     }
@@ -74,7 +73,7 @@ namespace aoi {
 
     std::pair<const T&, const P&> peekWithPriority() const {
       if (empty()) throw std::runtime_error("FibonacciHeap::peekWithPriority(): heap is empty");
-      return {minNode->data->value, minNode->data->priority};
+      return {min->data->value, min->data->priority};
     }
     const T& peek() const { return peekWithPriority().first; }
 
@@ -86,16 +85,27 @@ namespace aoi {
     void decreasePriority(NodeData* nodeData, P newPriority);
 
     void merge(FibonacciHeap& other) {
-      tail->right = other.head;
-      other.head->left = tail;
-      tail = other.tail;
-      other.head = nullptr;
-      other.tail = nullptr;
-
-      if (higherPriority(comp, other.minNode, min)) {
-        min = other.minNode;
+      if (this == &other) return;
+      if (!other.head) return;
+      if (!head) {
+        head = other.head;
+        min = other.min;
+        other.head = other.min = nullptr;
+        return;
       }
-      other.minNode = nullptr;
+
+      Node* thisTail = head->left;
+      Node* otherTail = other.head->left;
+
+      thisTail->right = other.head;
+      other.head->left = thisTail;
+      otherTail->right = head;
+      head->left = otherTail;
+
+      if (higherPriority(comp, other.min, min)) {
+        min = other.min;
+      }
+      other.head = other.min = nullptr;
     }
 
     void delete_key(NodeData* nodeData);
@@ -104,10 +114,12 @@ namespace aoi {
 
 
    private:
-    Node *head, *tail, *min;
+    Node* head;
+    Node* min;
     Compare comp;
     NodeAllocator alloc;
     NodeDataAllocator dataAlloc;
+
 
     static bool higherPriority(const Compare& comp, Node* a, Node* b) {
       return comp(a->data->priority, b->data->priority);
@@ -116,6 +128,28 @@ namespace aoi {
     static void swapNodes(Node* a, Node* b) {
       std::swap(a->data, b->data);
       std::swap(a->data->node, b->data->node);
+    }
+
+    static Node* linkTwoTrees(const Compare& comp, Node* a, Node* b) {
+      if (higherPriority(comp, b, a)) {
+        std::swap(a, b);
+      }
+      return linkTrees(a, b);
+    }
+
+    static Node* linkTrees(Node* parent, Node* child) {
+      child->parent = parent;
+      if (!parent->child) {
+        parent->child = child;
+        child->left = child->right = child;
+      } else {
+        child->right = parent->child;
+        child->left = parent->child->left;
+        parent->child->left->right = child;
+        parent->child->left = child;
+      }
+      parent->degree++;
+      return parent;
     }
 
     void consolidate();
@@ -128,7 +162,6 @@ namespace aoi {
 
       FibonacciHeap tmp {comp, alloc, dataAlloc};
       tmp.head = new_node;
-      tmp.tail = new_node;
       tmp.min = new_node;
       merge(tmp);
 
@@ -163,44 +196,86 @@ namespace aoi {
     if (empty()) {
       throw std::runtime_error("FibonacciHeap::pop(): heap is empty");
     }
-    Node* childsHead {minNode->child};
-    Node* childsTail {childsHead};
-    Node* childsMin {childsHead};
-
-    if (childsHead) {
-      Node* current = childsHead;
-      while (true) {
-        if (higherPriority(comp, current, childsMin)) {
-          childsMin = current;
-        }
-        current->parent = nullptr;
-        if (current->right) {
-          current = current->right;
-        } else
-          break;
-      }
-      childsTail = current;
-    }
-
-    if (!minNode->right) {
-      tail = minNode->left;
-    } else if (!minNode->left) {
-      head = minNode->right;
+    if (min->right == min) {
+      head = nullptr;
     } else {
-      minNode->left = minNode->right;
+      min->left->right = min->right;
+      min->right->left = min->left;
+      if (head == min) {
+        head = min->right;
+      }
     }
 
-    if (childsHead) {
-      FibonacciHeap tmp {comp, alloc, dataAlloc};
-      tmp.head = childsHead;
-      tmp.tail = childsTail;
-      tmp.min = childsMin;
-      merge(tmp);
+    if (min->child) {
+      FibonacciHeap childHeap {comp, alloc, dataAlloc};
+      childHeap.head = min->child;
+      childHeap.min = min->child;
+
+      Node* current {min->child};
+      do {
+        current->parent = nullptr;
+        if (higherPriority(comp, current, childHeap.min)) {
+          childHeap.min = current;
+        }
+        current = current->right;
+      } while (current != min->child);
+
+      merge(childHeap);
+    }
+
+    delete_node(min);
+
+    if (head) {
+      consolidate();
+    } else {
+      min = nullptr;
     }
   }
 
   template <typename T, typename P, typename Compare, typename A>
   void FibonacciHeap<T, P, Compare, A>::consolidate() {
+    std::vector<Node*> degreeTable;
+    Node* current {head};
+    do {
+      Node* next {current->right};
+      size_t degree {current->degree};
+
+      if (degree >= degreeTable.size()) {
+        degreeTable.resize(degree + 1, nullptr);
+      }
+
+      while (degreeTable[degree]) {
+        current = linkTwoTrees(comp, current, degreeTable[degree]);
+        degreeTable[degree] = nullptr;
+        degree++;
+        if (degree >= degreeTable.size()) {
+          degreeTable.resize(degree + 1, nullptr);
+        }
+      }
+      degreeTable[degree] = current;
+      current = next;
+
+    } while (current != head);
+
+    head = min = nullptr;
+    for (Node* node : degreeTable) {
+      if (node) {
+        if (!head) {
+          head = min = node;
+        } else {
+          Node* tail {head->left};
+
+          tail->right = node;
+          node->left = tail;
+          node->right = head;
+          head->left = node;
+
+          if (higherPriority(comp, node, min)) {
+            min = node;
+          }
+        }
+      }
+    }
   }
 
 }
