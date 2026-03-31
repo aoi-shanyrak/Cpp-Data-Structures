@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <stack>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -82,33 +83,22 @@ namespace aoi {
 
     void pop();
 
-    void decreasePriority(NodeData* nodeData, P newPriority);
-
-    void merge(FibonacciHeap& other) {
-      if (this == &other) return;
-      if (!other.head) return;
-      if (!head) {
-        head = other.head;
-        min = other.min;
-        other.head = other.min = nullptr;
-        return;
+    void decreasePriority(NodeData* nodeData, P newPriority) {
+      if (!nodeData) {
+        throw std::invalid_argument("FibonacciHeap::decreasePriority(): nodeData is null");
       }
-
-      Node* thisTail = head->left;
-      Node* otherTail = other.head->left;
-
-      thisTail->right = other.head;
-      other.head->left = thisTail;
-      otherTail->right = head;
-      head->left = otherTail;
-
-      if (higherPriority(comp, other.min, min)) {
-        min = other.min;
-      }
-      other.head = other.min = nullptr;
+      decreasePriority_impl(nodeData->node, newPriority);
     }
 
-    void delete_key(NodeData* nodeData);
+    void merge(FibonacciHeap& other);
+
+    void delete_key(NodeData* nodeData) {
+      if (!nodeData) {
+        throw std::invalid_argument("FibonacciHeap::delete_key(): nodeData is null");
+      }
+      decreasePriority_impl(nodeData->node, std::numeric_limits<P>::min(), true);
+      pop();
+    }
 
     bool empty() const noexcept { return head == nullptr; }
 
@@ -123,11 +113,6 @@ namespace aoi {
 
     static bool higherPriority(const Compare& comp, Node* a, Node* b) {
       return comp(a->data->priority, b->data->priority);
-    }
-
-    static void swapNodes(Node* a, Node* b) {
-      std::swap(a->data, b->data);
-      std::swap(a->data->node, b->data->node);
     }
 
     static Node* linkTwoTrees(const Compare& comp, Node* a, Node* b) {
@@ -150,6 +135,22 @@ namespace aoi {
       }
       parent->degree++;
       return parent;
+    }
+
+    void decreasePriority_impl(Node* node, P newPriority, bool alwaysLess = false);
+
+
+    void cut(Node* node, Node* parent);
+
+    void cascadingCut(Node* node) {
+      if (node->parent) {
+        if (!node->marked) {
+          node->marked = true;
+        } else {
+          cut(node, node->parent);
+          cascadingCut(node->parent);
+        }
+      }
     }
 
     void consolidate();
@@ -233,6 +234,48 @@ namespace aoi {
   }
 
   template <typename T, typename P, typename Compare, typename A>
+  void FibonacciHeap<T, P, Compare, A>::merge(FibonacciHeap& other) {
+    if (this == &other) return;
+    if (!other.head) return;
+    if (!head) {
+      head = other.head;
+      min = other.min;
+      other.head = other.min = nullptr;
+      return;
+    }
+
+    Node* thisTail = head->left;
+    Node* otherTail = other.head->left;
+
+    thisTail->right = other.head;
+    other.head->left = thisTail;
+    otherTail->right = head;
+    head->left = otherTail;
+
+    if (higherPriority(comp, other.min, min)) {
+      min = other.min;
+    }
+    other.head = other.min = nullptr;
+  }
+
+  template <typename T, typename P, typename Compare, typename A>
+  void FibonacciHeap<T, P, Compare, A>::decreasePriority_impl(Node* node, P newPriority, bool alwaysLess) {
+    if (node->data->priority < newPriority && !alwaysLess) {
+      throw std::invalid_argument(
+          "FibonacciHeap::decreasePriority_impl(): new priority is greater than current priority");
+    }
+    node->data->priority = newPriority;
+
+    if (node->parent && (higherPriority(comp, node, node->parent) or alwaysLess)) {
+      cut(node, node->parent);
+      cascadingCut(node->parent);
+    }
+    if (higherPriority(comp, node, min) or alwaysLess) {
+      min = node;
+    }
+  }
+
+  template <typename T, typename P, typename Compare, typename A>
   void FibonacciHeap<T, P, Compare, A>::consolidate() {
     std::vector<Node*> degreeTable;
     Node* current {head};
@@ -276,6 +319,59 @@ namespace aoi {
         }
       }
     }
+  }
+
+  template <typename T, typename P, typename Compare, typename A>
+  void FibonacciHeap<T, P, Compare, A>::cut(Node* node, Node* parent) {
+    if (node->right == node) {
+      parent->child = nullptr;
+    } else {
+      node->left->right = node->right;
+      node->right->left = node->left;
+      if (parent->child == node) {
+        parent->child = node->right;
+      }
+    }
+    parent->degree--;
+
+    if (!head) {
+      head = node;
+      min = node;
+      node->left = node->right = node;
+    } else {
+      Node* tail {head->left};
+
+      tail->right = node;
+      node->left = tail;
+      node->right = head;
+      head->left = node;
+
+      if (higherPriority(comp, node, min)) {
+        min = node;
+      }
+    }
+    node->parent = nullptr;
+    node->marked = false;
+  }
+
+
+  template <typename T, typename P, typename Compare, typename A>
+  void FibonacciHeap<T, P, Compare, A>::clear() noexcept {
+    std::stack<Node*> clearStack;
+    if (head) {
+      clearStack.push(head);
+    }
+    while (!clearStack.empty()) {
+      Node* current = clearStack.top();
+      clearStack.pop();
+      if (current->child) clearStack.push(current->child);
+      while (current->right != current) {
+        clearStack.push(current->right);
+        current = current->right;
+      }
+      delete_node(current);
+    }
+    head = min = nullptr;
   }
 
 }
