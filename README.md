@@ -2,10 +2,14 @@
 
 This library provides templated implementations of three data structures in C++17:
 
-- **Vector** — a dynamic array (similar to `std::vector`) with manual memory management with allocator.
-- **Heap** — a classic binary heap (priority queue) with support for custom comparators.
-- **HeapDecreasing** — an extended version of the heap that allows decreasing the priority of an arbitrary element (decrease-key) using an index map.
-- **LinkedList** — singly and doubly linked lists with custom iterators and node allocator.
+- Simple:
+  - **Vector** — a dynamic array (similar to `std::vector`) with manual memory management with allocator.
+  - **Heap** — binary heap with customizable ordering.
+  - **LinkedList** — singly and doubly linked lists with custom iterators and node allocator.
+- Heaps:
+  - **BinaryHeap** -- a extended version of `Heap` with support for decreasing\deleting by handles
+  - **BinomialHeap** -- a classic binomial heap (all operations for O(logN))
+  - **FibonacciHeap** -- a masterpiece of all heaps
 
 ---
 
@@ -13,53 +17,36 @@ This library provides templated implementations of three data structures in C++1
 
 The template class `Vector<T, Allocator>` implements a dynamic array with a classic interface:
 
-```cpp
-Vector<int> v(5, 42);      // 5 elements with value 42
-v.push_back(100);           // add an element
-for (int x : v) { /* ... */ }
-```
-
 ---
 
 ## Heap
 
 The `Heap<T, Priority = int, Compare = std::less<Priority>, Allocator = ...>` class implements a binary heap (priority queue).
 
-- By default, it works as a **min-heap** (lower priority comes first).
-- You can specify a custom comparator (e.g., `std::greater<int>` for a max-heap).
-- Operations: `push(priority, value)`, `pop()`, `peek()`, `merge(Heap)`.
-
-Example:
-
-```cpp
-Heap<std::string, int, std::greater<int>> h;
-h.push(10, "high");
-h.push(5,  "medium");
-std::cout << h.peek(); // "high"
-```
+- Default mode: **min-heap**.
+- Custom comparator enables max-heap behavior.
+- Core operations: `push`, `pop`, `peek`, `merge`.
 
 ---
 
-## HeapDecreasing
+## Quick Guide: Advanced Heaps
 
-The `HeapDecreasing<T, Priority = int, Compare = std::greater<Priority>, Allocator = ...>` class extends the standard heap by allowing **priority decreases** for elements already in the heap (similar to decrease-key in Dijkstra's algorithm). This is achieved using an additional `indexMap` vector that stores the position of each element in the heap.
+### BinaryHeap
 
-- Methods:
-  - `containsValue(value)` – checks if an element is present in the heap.
-  - `decreasePriorityByValue(value, newPriority)` – increases the priority of an element by its value.
-  - `decreasePriority(index, newPriority)` – by its index in the heap.
-  - `peekWithPriority()` return pair.
-  - `merge(Heap)` merges two heaps into one.
-- All heap-modifying operations (`push`, `pop`, `decreasePriority`) automatically update `indexMap`.
+- Use when you need fast handle-based updates.
+- Main operations: `push`, `peek`, `pop`, `decreasePriority`, `deleteKey`.
 
-Example (simulating Dijkstra on a min-heap):
+### BinomialHeap
 
-```cpp
-HeapDecreasing<int> pq(6); // 6 vertices, min-heap
-pq.push(0, 0);   // vertex 0, distance 0
-pq.push(1000, 1); // vertex 1, distance "infinity"
-pq.increasePriorityByValue(1, 4); // decrease distance to 4 (in min-heap, increasing the number = lowering priority)
-```
+- Good when frequent heap merges are needed.
+- Main operations: `push`, `peek`, `pop`, `merge`.
+
+### FibonacciHeap
+
+- Best choice for many `decreasePriority` calls.
+- Main operations: `push`, `peek`, `pop`, `decreasePriority`, `deleteKey`, `merge`.
+
+Tip: use `std::greater<int>` as comparator to switch to max-heap behavior.
 
 ---
 

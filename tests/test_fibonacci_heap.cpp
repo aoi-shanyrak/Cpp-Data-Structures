@@ -121,7 +121,7 @@ void test_delete_key_min_and_max() {
     (void)a;
     (void)c;
 
-    h.delete_key(b);
+    h.deleteKey(b);
     assert(h.peek() == 100);
     h.pop();
     assert(h.peek() == 200);
@@ -135,7 +135,7 @@ void test_delete_key_min_and_max() {
     (void)a;
     (void)b;
 
-    h.delete_key(c);
+    h.deleteKey(c);
     assert(h.peek() == 100);
     h.pop();
     assert(h.peek() == 50);
@@ -211,7 +211,7 @@ void test_rvalue_and_exceptions() {
 
   bool nullDeleteThrew = false;
   try {
-    h.delete_key(nullptr);
+    h.deleteKey(nullptr);
   } catch (const std::invalid_argument&) {
     nullDeleteThrew = true;
   }
