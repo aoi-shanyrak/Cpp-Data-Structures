@@ -143,12 +143,14 @@ namespace aoi {
     void cut(Node* node, Node* parent);
 
     void cascadingCut(Node* node) {
-      if (node->parent) {
+      if (!node) return;
+      Node* parent = node->parent;
+      if (parent) {
         if (!node->marked) {
           node->marked = true;
         } else {
-          cut(node, node->parent);
-          cascadingCut(node->parent);
+          cut(node, parent);
+          cascadingCut(parent);
         }
       }
     }
@@ -197,6 +199,8 @@ namespace aoi {
     if (empty()) {
       throw std::runtime_error("FibonacciHeap::pop(): heap is empty");
     }
+    Node* oldMin = min;
+
     if (min->right == min) {
       head = nullptr;
     } else {
@@ -224,13 +228,13 @@ namespace aoi {
       merge(childHeap);
     }
 
-    delete_node(min);
-
     if (head) {
       consolidate();
     } else {
       min = nullptr;
     }
+
+    delete_node(oldMin);
   }
 
   template <typename T, typename P, typename Compare, typename A>
@@ -260,15 +264,16 @@ namespace aoi {
 
   template <typename T, typename P, typename Compare, typename A>
   void FibonacciHeap<T, P, Compare, A>::decreasePriority_impl(Node* node, P newPriority, bool alwaysLess) {
-    if (node->data->priority < newPriority && !alwaysLess) {
+    if (!alwaysLess && comp(node->data->priority, newPriority)) {
       throw std::invalid_argument(
           "FibonacciHeap::decreasePriority_impl(): new priority is greater than current priority");
     }
     node->data->priority = newPriority;
 
-    if (node->parent && (higherPriority(comp, node, node->parent) or alwaysLess)) {
-      cut(node, node->parent);
-      cascadingCut(node->parent);
+    Node* parent {node->parent};
+    if (parent && (higherPriority(comp, node, parent) or alwaysLess)) {
+      cut(node, parent);
+      cascadingCut(parent);
     }
     if (higherPriority(comp, node, min) or alwaysLess) {
       min = node;
@@ -277,16 +282,22 @@ namespace aoi {
 
   template <typename T, typename P, typename Compare, typename A>
   void FibonacciHeap<T, P, Compare, A>::consolidate() {
-    std::vector<Node*> degreeTable;
+    if (!head) return;
+
+    std::vector<Node*> roots;
     Node* current {head};
     do {
-      Node* next {current->right};
+      roots.push_back(current);
+      current = current->right;
+    } while (current != head);
+
+    std::vector<Node*> degreeTable;
+    for (Node* current : roots) {
       size_t degree {current->degree};
 
       if (degree >= degreeTable.size()) {
         degreeTable.resize(degree + 1, nullptr);
       }
-
       while (degreeTable[degree]) {
         current = linkTwoTrees(comp, current, degreeTable[degree]);
         degreeTable[degree] = nullptr;
@@ -296,13 +307,12 @@ namespace aoi {
         }
       }
       degreeTable[degree] = current;
-      current = next;
-
-    } while (current != head);
+    }
 
     head = min = nullptr;
     for (Node* node : degreeTable) {
       if (node) {
+        node->left = node->right = node;
         if (!head) {
           head = min = node;
         } else {
@@ -357,19 +367,28 @@ namespace aoi {
 
   template <typename T, typename P, typename Compare, typename A>
   void FibonacciHeap<T, P, Compare, A>::clear() noexcept {
+    if (!head) return;
+
     std::stack<Node*> clearStack;
-    if (head) {
-      clearStack.push(head);
-    }
+    Node* current {head};
+    do {
+      clearStack.push(current);
+      current = current->right;
+    } while (current != head);
+
     while (!clearStack.empty()) {
-      Node* current = clearStack.top();
+      Node* node = clearStack.top();
       clearStack.pop();
-      if (current->child) clearStack.push(current->child);
-      while (current->right != current) {
-        clearStack.push(current->right);
-        current = current->right;
+
+      if (node->child) {
+        Node* child = node->child;
+        do {
+          clearStack.push(child);
+          child = child->right;
+        } while (child != node->child);
       }
-      delete_node(current);
+
+      delete_node(node);
     }
     head = min = nullptr;
   }
