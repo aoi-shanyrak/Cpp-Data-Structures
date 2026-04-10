@@ -94,7 +94,7 @@ namespace aoi {
     void clear() noexcept { data.clear(); }
 
 
-   protected:
+   private:
     Compare comp;
     Container data;
 
