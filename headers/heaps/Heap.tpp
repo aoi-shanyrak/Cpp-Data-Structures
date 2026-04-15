@@ -38,7 +38,7 @@ namespace aoi {
     Heap(Heap&&) noexcept = default;
     Heap& operator=(const Heap&) = default;
     Heap& operator=(Heap&&) noexcept = default;
-    ~Heap() = default;
+    ~Heap() { clear(); }
 
     const T& peek() const {
       if (isEmpty()) throw std::runtime_error("Heap::peek(): heap is empty");
