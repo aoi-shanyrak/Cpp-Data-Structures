@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <deque>
 #include <stack>
@@ -26,7 +27,7 @@ namespace aoi {
     using iterator = Container::iterator;
     using const_iterator = Container::const_iterator;
 
-    RedBlackBST() = default;
+    RedBlackBST() : data {}, freeList {}, root {nullindex} {}
     RedBlackBST(const RedBlackBST&) = default;
     RedBlackBST& operator=(const RedBlackBST&) = default;
     RedBlackBST(RedBlackBST&&) = default;
@@ -34,11 +35,11 @@ namespace aoi {
     ~RedBlackBST() { clear(); }
 
 
-    void insert(const K& key) { insert(key); }
-    void insert(K&& key) { insert(std::move(key)); }
+    void insert(const K& key) { insert_impl(key); }
+    void insert(K&& key) { insert_impl(std::move(key)); }
 
-    void remove(const K& key) { remove(key); }
-    void remove(K&& key) { remove(std::move(key)); }
+    void remove(const K& key) { remove_impl(key); }
+    void remove(K&& key) { remove_impl(std::move(key)); }
 
 
     bool empty() { return root == nullindex; }
@@ -60,11 +61,32 @@ namespace aoi {
     index_type root;
 
 
-    template <typename U>
-    void insert(U&& key) {}
+    template <typename UK, typename UT>
+    void insert_impl(UK&& key, UT&& value) {
+      if (root == nullindex) {
+        root = new_node(std::forward(key), std::forward(value));
+        return;
+      }
+      Node& node {node_at(root)};
+      while (true) {
+        if (value < node.value) {
+          if (node.left == nullindex) {
+            node.left = new_node(std::forward(key), std::forward(value));
+            return;
+          }
+          node = node.left;
+        } else {
+          if (node.right == nullindex) {
+            node.right = new_node(std::forward(key), std::forward(value));
+            return;
+          }
+          node = node.right;
+        }
+      }
+    }
 
-    template <typename U>
-    void remove(U&& key) {}
+    template <typename UK, typename UT>
+    void remove_impl(UK&& key, UT&& value) {}
 
 
     void shrink_to_fit() {
@@ -75,21 +97,51 @@ namespace aoi {
       data.clear();
       freeList = {};
 
-      root = build_balanced(elements, 0, elements.size() - 1);
+      root = build_balanced(elements, 0, elements.size() - 1, nullindex);
     }
 
-    void extract_in_order(index_type node, std::vector<std::pair<K, T>> out) {
-      if (node == nullindex) return;
-      extract_in_order(data[node].left, out);
+    void extract_in_order(index_type idx, std::vector<std::pair<K, T>>& out) {
+      if (idx == nullindex) return;
+      Node& node {node_at(idx)};
 
-      out.emplace_back(std::move(data[node].key), std::move(data[node].value));
-      delete_node(node);
+      extract_in_order(node.left, out);
 
-      extract_in_order(data[node].right, out);
+      out.emplace_back(std::move(node.key), std::move(node.value));
+      delete_node(idx);
+
+      extract_in_order(node.right, out);
     }
+
+    struct BuildResult {
+      index_type node;
+      size_t height;
+    };
+    BuildResult build_balanced(const std::vector<std::pair<K, T>>& elements, size_t start, size_t end,
+                               index_type parent) {
+      if (start > end) return {nullindex, -1};
+
+      size_t middle {(start + end) / 2};
+      index_type idx {new_node(elements[middle].first, elements[middle].second)};
+      Node& node {node_at(idx)};
+      node.parent = parent;
+
+      BuildResult left_res {build_balanced(elements, start, middle - 1, idx)};
+      BuildResult right_res {build_balanced(elements, middle + 1, end, idx)};
+      node.left = left_res.node;
+      node.right = right_res.node;
+
+      size_t height {std::max(left_res.height, right_res.height) + 1};
+
+      node.red = (height % 2 == 1);
+
+      return {idx, height};
+    }
+
+    const Node& node_at(index_type idx) const { return *std::launder(reinterpret_cast<const Node*>(&data[idx])); }
+    Node& node_at(index_type idx) { return const_cast<Node&>(std::as_const(*this).node_at(idx)); }
 
     template <typename UK, typename UT>
-    Node& new_node(UK&& key, UT&& value) {
+    index_type new_node(UK&& key, UT&& value) {
       index_type idx;
       if (!freeList.empty()) {
         idx = freeList.top();
@@ -104,16 +156,16 @@ namespace aoi {
     }
 
     void delete_node(index_type idx) {
-      Node* node = reinterpret_cast<Node*>(&data[idx]);
-      node->~Node();
+      node_at(idx)->~Node();
       freeList.push(idx);
     }
 
-    void clear_subtree(index_type node) noexcept {
-      if (node == nullindex) return;
-      clear_subtree(data[node].left);
-      clear_subtree(data[node].right);
-      delete_node(node);
+    void clear_subtree(index_type idx) noexcept {
+      if (idx == nullindex) return;
+      Node& node {node_at(idx)};
+      clear_subtree(node.left);
+      clear_subtree(node.right);
+      delete_node(idx);
     }
   };
 
