@@ -19,6 +19,17 @@ The template class `Vector<T, Allocator>` implements a dynamic array with a clas
 
 ---
 
+## LinkedList
+
+The library provides two linked list implementations:
+
+- `SinglyLinkedList<T, A>` — singly linked list with forward iterator.
+- `DoublyLinkedList<T, A>` — doubly linked list with bidirectional iterator.
+
+This linked list also has his own allocator based on import allocator. So it reduce amount of syscalls by reserving memory for nodes.
+
+---
+
 ## Heap
 
 The `Heap<T, Priority = int, Compare = std::less<Priority>, Allocator = ...>` class implements a binary heap (priority queue).
@@ -50,14 +61,9 @@ Tip: use `std::greater<int>` as comparator to switch to max-heap behavior.
 
 ---
 
-## LinkedList
+## Red Black BSTree
 
-The library provides two linked list implementations:
-
-- `SinglyLinkedList<T, A>` — singly linked list with forward iterator.
-- `DoublyLinkedList<T, A>` — doubly linked list with bidirectional iterator.
-
-This linked list also has his own allocator based on import allocator. So it reduce amount of syscalls by reserving memory for nodes.
+this class implements a balanced binary search tree
 
 ---
 
@@ -66,5 +72,5 @@ This linked list also has his own allocator based on import allocator. So it red
 All tests are made by ai.
 
 ```bash
-make
+make test
 ```

@@ -366,7 +366,6 @@ namespace aoi {
     while (parent != nullindex) {
       index_type sibling {is_left_deleted ? right_of(parent) : left_of(parent)};
 
-      // Null sibling is treated as a black node with black children.
       if (sibling == nullindex) {
         index_type grandpa {parent_of(parent)};
         is_left_deleted = (grandpa != nullindex) && (parent == left_of(grandpa));
