@@ -15,7 +15,6 @@ namespace aoi {
   template <typename K, typename T>
   class RedBlackBST {
     using index_type = uint32_t;
-    static constexpr index_type nullindex = static_cast<index_type>(-1);
 
     enum class Color { Red, Black };
 
@@ -29,26 +28,59 @@ namespace aoi {
    public:
     using key_type = K;
     using value_type = T;
+    using Handle = index_type;
+
+    static constexpr index_type nullindex = static_cast<index_type>(-1);
 
     RedBlackBST() : data {}, freeList {}, root {nullindex} {}
-    RedBlackBST(const RedBlackBST&) = default;
-    RedBlackBST& operator=(const RedBlackBST&) = default;
+
+    RedBlackBST(const RedBlackBST&) = delete;
+    RedBlackBST& operator=(const RedBlackBST&) = delete;
+
     RedBlackBST(RedBlackBST&&) = default;
     RedBlackBST& operator=(RedBlackBST&&) = default;
+
     ~RedBlackBST() { clear(); }
 
-    // TODO: min/max
 
+    template <std::convertible_to<K> UK>
+    const T& find(UK&& key) const {
+      index_type idx {search(std::forward<UK>(key))};
+      if (idx == nullindex) throw std::out_of_range("RedBlackBST::find key not found");
+      return value_of(idx);
+    }
 
     template <std::convertible_to<K> UK, std::convertible_to<T> UT>
     void insert(UK key, UT value);
 
-    template <std::convertible_to<K> UK, std::convertible_to<T> UT>
-    void remove(UK&& key, UT&& value) {
-      SearchResult res {search(std::forward<UK>(key))};
+    template <std::convertible_to<K> UK>
+    void remove(UK&& key) {
+      SearchResult res {search_impl(std::forward<UK>(key))};
       if (res.node == nullindex) return;
       remove_node(res.node, res.is_left);
     }
+
+
+    const T& min() const {
+      auto res {get_extreme(root, nullindex, &Node::left)};
+      return value_of(res.node);
+    }
+    const T& max() const {
+      auto res {get_extreme(root, nullindex, &Node::right)};
+      return value_of(res.node);
+    }
+
+
+    template <std::convertible_to<K> UK>
+    Handle search(UK&& key) const {
+      auto res {search_impl(std::forward<UK>(key))};
+      return res.node;
+    }
+
+    Handle succ(Handle idx) const { return get_succ_or_pred(idx, true); }
+    Handle pred(Handle idx) const { return get_succ_or_pred(idx, false); }
+
+    const T& get_by_handle(Handle idx) const { return value_of(idx); }
 
 
     bool empty() { return root == nullindex; }
@@ -56,7 +88,7 @@ namespace aoi {
 
     void clear() noexcept {
       clear_subtree(root);
-      data.clear();
+      data = {};
       freeList = {};
       root = nullindex;
     }
@@ -76,7 +108,9 @@ namespace aoi {
       bool is_left;
     };
     template <std::convertible_to<K> UK>
-    SearchResult search(UK&& key) const;
+    SearchResult search_impl(UK&& key) const;
+
+    index_type get_succ_or_pred(index_type idx, bool get_succ) const;
 
     SearchResult get_extreme(index_type node, index_type parent, index_type Node::*direction) const {
       if (node == nullindex) return {nullindex, nullindex, false};
@@ -106,6 +140,13 @@ namespace aoi {
     index_type& left_of(index_type idx) { return node_at(idx).left; }
     index_type& right_of(index_type idx) { return node_at(idx).right; }
     Color& color_of(index_type idx) { return node_at(idx).color; }
+
+    const K& key_of(index_type idx) const { return node_at(idx).key; }
+    const T& value_of(index_type idx) const { return node_at(idx).value; }
+    const index_type& parent_of(index_type idx) const { return node_at(idx).parent; }
+    const index_type& left_of(index_type idx) const { return node_at(idx).left; }
+    const index_type& right_of(index_type idx) const { return node_at(idx).right; }
+    const Color& color_of(index_type idx) const { return node_at(idx).color; }
 
 
     const Node& node_at(index_type idx) const { return *std::launder(reinterpret_cast<const Node*>(&data[idx])); }
@@ -139,9 +180,32 @@ namespace aoi {
 
 
   template <typename K, typename T>
+  auto RedBlackBST<K, T>::get_succ_or_pred(index_type idx, bool get_succ) const -> index_type {
+    if (idx == nullindex) return nullindex;
+
+    index_type Node::*direction {get_succ ? &Node::right : &Node::left};
+
+    if (node_at(idx).*direction != nullindex) {
+      index_type Node::*extreme_direction {get_succ ? &Node::left : &Node::right};
+      auto res {get_extreme(node_at(idx).*direction, idx, extreme_direction)};
+      return res.node;
+    }
+
+    index_type parent {parent_of(idx)};
+    index_type cur {idx};
+
+    while (parent != nullindex && cur == node_at(parent).*direction) {
+      cur = parent;
+      parent = parent_of(parent);
+    }
+    return parent;
+  }
+
+
+  template <typename K, typename T>
   template <std::convertible_to<K> UK, std::convertible_to<T> UT>
   void RedBlackBST<K, T>::insert(UK key, UT value) {
-    SearchResult res {search(std::forward<UK>(key))};
+    SearchResult res {search_impl(std::forward<UK>(key))};
 
     if (res.node != nullindex) {
       value_of(res.node) = std::forward<UT>(value);
@@ -168,10 +232,10 @@ namespace aoi {
   void RedBlackBST<K, T>::remove_node(index_type toDelete, bool is_left_toDelete) {
     index_type parent {parent_of(toDelete)};
 
-    char amount_of_children {(left_of(toDelete) != nullindex) + (right_of(toDelete) != nullindex)};
+    int amount_of_children {(left_of(toDelete) != nullindex) + (right_of(toDelete) != nullindex)};
 
     switch (amount_of_children) {
-      case 2:
+      case 2: {
         SearchResult succ {get_extreme(right_of(toDelete), toDelete, &Node::left)};
 
         key_of(toDelete) = std::move(key_of(succ.node));
@@ -179,8 +243,9 @@ namespace aoi {
 
         remove_node(succ.node, succ.is_left);
         break;
+      }
 
-      case 1:
+      case 1: {
         bool child_is_left {left_of(toDelete) != nullindex};
         index_type child {child_is_left ? left_of(toDelete) : right_of(toDelete)};
 
@@ -202,8 +267,9 @@ namespace aoi {
         delete_node(toDelete);
 
         break;
+      }
 
-      case 0:
+      case 0: {
         if (parent == nullindex) {
           delete_node(toDelete);
           root = nullindex;
@@ -221,6 +287,7 @@ namespace aoi {
         if (colorToDelete == Color::Black) {
           balance_after_delete(parent, is_left_toDelete);
         }
+      }
     }
 
     if (size() < data.size() / 4) {
@@ -231,7 +298,7 @@ namespace aoi {
 
   template <typename K, typename T>
   template <std::convertible_to<K> UK>
-  auto RedBlackBST<K, T>::search(UK&& key) const -> SearchResult {
+  auto RedBlackBST<K, T>::search_impl(UK&& key) const -> SearchResult {
     index_type parent {nullindex};
     index_type cur {root};
     bool is_left {false};
@@ -263,7 +330,7 @@ namespace aoi {
       index_type grandpa {parent_of(parent)};
 
       bool is_left_parent {parent == node_at(grandpa).left};
-      index_type uncle {is_left_parent ? right_of(parent) : left_of(parent)};
+      index_type uncle {is_left_parent ? right_of(grandpa) : left_of(grandpa)};
 
       if (uncle != nullindex && color_of(uncle) == Color::Red) {
         color_of(parent) = Color::Black;
@@ -299,6 +366,14 @@ namespace aoi {
     while (parent != nullindex) {
       index_type sibling {is_left_deleted ? right_of(parent) : left_of(parent)};
 
+      // Null sibling is treated as a black node with black children.
+      if (sibling == nullindex) {
+        index_type grandpa {parent_of(parent)};
+        is_left_deleted = (grandpa != nullindex) && (parent == left_of(grandpa));
+        parent = grandpa;
+        continue;
+      }
+
       if (color_of(sibling) == Color::Red) {
         color_of(sibling) = Color::Black;
         color_of(parent) = Color::Red;
@@ -319,19 +394,19 @@ namespace aoi {
       if (sibling_left_black && sibling_right_black) {
         color_of(sibling) = Color::Red;
         index_type grandpa {parent_of(parent)};
-        is_left_deleted = (grandpa != nullindex) && (parent_of(grandpa) == left_of(grandpa));
+        is_left_deleted = (grandpa != nullindex) && (parent == left_of(grandpa));
         parent = grandpa;
         continue;
       }
 
       if (is_left_deleted && sibling_right_black) {
-        color_of(sibling_left) = Color::Black;
+        if (sibling_left != nullindex) color_of(sibling_left) = Color::Black;
         color_of(sibling) = Color::Red;
         rotate_right(sibling);
         sibling = right_of(parent);
 
       } else if (!is_left_deleted && sibling_left_black) {
-        color_of(sibling_right) = Color::Black;
+        if (sibling_right != nullindex) color_of(sibling_right) = Color::Black;
         color_of(sibling) = Color::Red;
         rotate_left(sibling);
         sibling = left_of(parent);
@@ -343,15 +418,15 @@ namespace aoi {
       color_of(sibling) = color_of(parent);
       color_of(parent) = Color::Black;
       if (is_left_deleted) {
-        color_of(sibling_right) = Color::Black;
+        if (sibling_right != nullindex) color_of(sibling_right) = Color::Black;
         rotate_left(parent);
       } else {
-        color_of(sibling_left) = Color::Black;
+        if (sibling_left != nullindex) color_of(sibling_left) = Color::Black;
         rotate_right(parent);
       }
       break;
     }
-    color_of(root) = Color::Black;
+    if (root != nullindex) color_of(root) = Color::Black;
   }
 
 
@@ -369,7 +444,7 @@ namespace aoi {
     y.parent = x.parent;
     if (x.parent == nullindex) {
       root = y_idx;
-    } else if (x_idx == parent_of(x.parent)) {
+    } else if (x_idx == left_of(x.parent)) {
       left_of(x.parent) = y_idx;
     } else {
       right_of(x.parent) = y_idx;
@@ -393,10 +468,10 @@ namespace aoi {
     x.parent = y.parent;
     if (y.parent == nullindex) {
       root = x_idx;
-    } else if (y_idx == parent_of(y.parent)) {
-      parent_of(y.parent) = x_idx;
+    } else if (y_idx == left_of(y.parent)) {
+      left_of(y.parent) = x_idx;
     } else {
-      parent_of(y.parent) = x_idx;
+      right_of(y.parent) = x_idx;
     }
 
     x.right = y_idx;
@@ -412,8 +487,12 @@ namespace aoi {
 
     data.clear();
     freeList = {};
+    if (elements.empty()) {
+      root = nullindex;
+      return;
+    }
 
-    root = build_balanced(elements, 0, elements.size() - 1, nullindex);
+    root = build_balanced(elements, 0, elements.size() - 1, nullindex).node;
   }
 
   template <typename K, typename T>
@@ -432,15 +511,23 @@ namespace aoi {
   template <typename K, typename T>
   auto RedBlackBST<K, T>::build_balanced(const std::vector<std::pair<K, T>>& elements, size_t start, size_t end,
                                          index_type parent) -> BuildResult {
-    if (start > end) return {nullindex, -1};
+    if (start > end) return {nullindex, 0};
 
     size_t middle {(start + end) / 2};
     index_type idx {new_node(elements[middle].first, elements[middle].second)};
     Node& node {node_at(idx)};
     node.parent = parent;
 
-    BuildResult left_res {build_balanced(elements, start, middle - 1, idx)};
-    BuildResult right_res {build_balanced(elements, middle + 1, end, idx)};
+    BuildResult left_res {nullindex, 0};
+    BuildResult right_res {nullindex, 0};
+
+    if (middle > start) {
+      left_res = build_balanced(elements, start, middle - 1, idx);
+    }
+    if (middle < end) {
+      right_res = build_balanced(elements, middle + 1, end, idx);
+    }
+
     node.left = left_res.node;
     node.right = right_res.node;
 
