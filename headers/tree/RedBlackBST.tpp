@@ -6,6 +6,7 @@
 #include <deque>
 #include <stack>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -112,13 +113,13 @@ namespace aoi {
           if (parent_idx == nullindex) {
             root = child_idx;
             node_at(child_idx).parent = nullindex;
-            node_at(child_idx).color = Color::Black;
+            set_color(child_idx, Color::Black);
             delete_node(toDelete_idx);
             return;
           }
 
           node_at(child_idx).parent = parent_idx;
-          node_at(child_idx).color = Color::Black;
+          set_color(child_idx, Color::Black);
           if (is_left_toDelete_for_parent) {
             node_at(parent_idx).left = child_idx;
           } else {
@@ -140,19 +141,119 @@ namespace aoi {
           } else {
             node_at(parent_idx).right = nullindex;
           }
+          Color colorToDelete {color(toDelete_idx)};
           delete_node(toDelete_idx);
 
-          if (node_at(toDelete_idx).color == Color::Black) {
-            balance_after_delete(parent_idx, is_left_toDelete_for_parent);
+          if (colorToDelete == Color::Black) {
+            // FIXME: idx may be wrong
+            balance_after_delete(toDelete_idx, is_left_toDelete_for_parent);
           }
       }
     }
 
     void balance_after_insert(index_type toDelete_idx);
-    void balance_after_delete(index_type toDelete_idx, bool is_left_toDelete_for_parent);
+    void balance_after_delete(index_type broken_idx, bool is_left_broken) {
+      auto [parent_idx, std::ignore] {get_parent_and_sister(broken_idx)};
+
+      switch (color(parent_idx)) {
+        case Color::Red: balance_delete_red_parent_case(broken_idx, is_left_broken); break;
+        case Color::Black: balance_delete_black_parent_case(broken_idx, is_left_broken);
+      }
+    }
+
+    void balance_delete_red_parent_case(index_type broken_idx, bool is_left_broken) {
+      auto [parent_idx, sister_idx] {get_parent_and_sister(broken_idx)};
+
+      bool sister_has_red_child {node_at(sister_idx).left != nullindex || node_at(sister_idx).right != nullindex};
+
+      if (sister_has_red_child) {
+        bool is_left_child {node_at(sister_idx).left != nullindex};
+
+        if (is_left_child)
+          rotate_right(sister_idx);
+        else
+          rotate_left(sister_idx);
+
+        if (is_left_broken)
+          rotate_left(parent_idx);
+        else
+          rotate_right(parent_idx);
+
+      } else
+        set_color(sister_idx, Color::Red);
+
+      set_color(parent_idx, Color::Black);
+    }
+
+    void balance_delete_black_parent_case(index_type broken_idx, bool is_left_broken) {
+      auto [parent_idx, sister_idx] {get_parent_and_sister(broken_idx)};
+
+      switch (color(sister_idx)) {
+        case Color::Red: balance_delete_black_parent_red_sister_case(broken_idx, is_left_broken); break;
+        case Color::Black: balance_delete_black_parent_black_sister_case(broken_idx, is_left_broken);
+      }
+    }
+
+    void balance_delete_black_parent_red_sister_case(index_type broken_idx, bool is_left_broken) {
+      auto [parent_idx, sister_idx] {get_parent_and_sister(broken_idx)};
+      auto& res {search_red_node_in_childs_childs(sister_idx)};
+
+      if (res.destination == nullindex) {
+        if (is_left_broken)
+          rotate_right(parent_idx);
+        else
+          rotate_left(parent_idx);
+
+        return;
+      }
+    }
+
+    void balance_delete_black_parent_black_sister_case(index_type broken_idx, bool is_left_broken);
+
+
+    std::pair<index_type, index_type> get_parent_and_sister(index_type idx) {
+      index_type parent {node_at(idx).parent};
+      index_type sister {(node_at(parent).left == idx) ? node_at(parent).right : node_at(parent).left};
+      return {parent, sister};
+    }
+    struct RedInBlackChilds_SearchRes {
+      index_type destination;
+      index_type parent_of_dest;
+      bool is_left_dest;
+      bool is_left_parent_of_dest;
+    };
+    RedInBlackChilds_SearchRes search_red_node_in_childs_childs(index_type root_idx) {
+      auto [left_child, right_child] {get_childs(root_idx)};
+
+      auto left_res {find_child_by_color(left_child, Color::Red)};
+      auto right_res {find_child_by_color(right_child, Color::Red)};
+
+      if (left_res.first != nullindex)
+        return {left_res.first, left_child, left_res.second, true};
+      else if (right_res.first != nullindex)
+        return {right_res.first, right_child, right.second, false};
+      else
+        return {nullindex, nullindex, false, false};
+    }
+
+    std::pair<index_type, bool> find_child_by_color(index_type idx, Color color) {
+      auto [left_child, right_child] {get_childs(idx)};
+
+      if (color(left_child) == color)
+        return {left_child, true};
+      else if (color(right_child) == color)
+        return {right_child, false};
+      else
+        return {nullindex, false};
+    }
+
+    std::pair<index_type, index_type> get_childs(index_type idx) { return {node_at(idx).left, node_at(idx).right}; }
+
+    Color color(index_type idx) { return node_at(idx).color; }
+    void set_color(index_type idx, Color color) { node_at(idx).color = color; }
 
     void rotate_left(index_type x_idx);
-    void rotate_right(index_type idx);
+    void rotate_right(index_type y_idx);
 
 
     struct BuildResult {
@@ -201,11 +302,13 @@ namespace aoi {
 
     if (res.parent == nullindex) {
       root = new_idx;
-    } else if (res.is_left) {
+      node_at(root).color = Color::Black;
+      return;
+
+    } else if (res.is_left)
       node_at(res.parent).left = new_idx;
-    } else {
+    else
       node_at(res.parent).right = new_idx;
-    }
 
     balance_after_insert(new_idx);
   }
@@ -239,9 +342,9 @@ namespace aoi {
 
 
   template <typename K, typename T>
-  void RedBlackBST<K, T>::balance_after_insert(index_type toDelete_idx) {
-    while (toDelete_idx != root && node_at(node_at(toDelete_idx).parent).color == Color::Red) {
-      index_type parent_idx {node_at(toDelete_idx).parent};
+  void RedBlackBST<K, T>::balance_after_insert(index_type New_idx) {
+    while (New_idx != root && node_at(node_at(New_idx).parent).color == Color::Red) {
+      index_type parent_idx {node_at(New_idx).parent};
       index_type grandpa_idx {node_at(parent_idx).parent};
 
       bool parent_is_left {parent_idx == node_at(grandpa_idx).left};
@@ -251,18 +354,18 @@ namespace aoi {
         node_at(parent_idx).color = Color::Black;
         node_at(uncle_idx).color = Color::Black;
         node_at(grandpa_idx).color = Color::Red;
-        toDelete_idx = grandpa_idx;
+        New_idx = grandpa_idx;
         continue;
       }
 
-      if ((parent_is_left && toDelete_idx == node_at(parent_idx).right) ||
-          (!parent_is_left && toDelete_idx == node_at(parent_idx).left)) {
+      if ((parent_is_left && New_idx == node_at(parent_idx).right) ||
+          (!parent_is_left && New_idx == node_at(parent_idx).left)) {
         if (parent_is_left)
           rotate_left(parent_idx);
         else
           rotate_right(parent_idx);
-        std::swap(toDelete_idx, parent_idx);
-        grandpa_idx = node_at(toDelete_idx).parent;
+        std::swap(New_idx, parent_idx);
+        grandpa_idx = node_at(New_idx).parent;
       }
 
       node_at(parent_idx).color = Color::Black;
