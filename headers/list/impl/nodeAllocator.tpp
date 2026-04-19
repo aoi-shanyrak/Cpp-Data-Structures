@@ -1,10 +1,5 @@
 #pragma once
 
-#include <memory>
-#include <stdexcept>
-#include <type_traits>
-#include <vector>
-
 namespace Allocator {
 
   template <typename NodeType, typename A = std::allocator<NodeType>,

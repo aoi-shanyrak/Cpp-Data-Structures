@@ -28,7 +28,7 @@ struct SinglyNode {
 
 
 template <typename T>
-struct DoublyNode : SinglyNode<T> {
+struct DoublyNode : public SinglyNode<T> {
   DoublyNode* prev = nullptr;
 
   static DoublyNode* next(DoublyNode& n) { return static_cast<DoublyNode*>(n.next); }
