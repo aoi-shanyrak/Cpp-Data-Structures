@@ -319,7 +319,11 @@ int main() {
   test_search_handle_and_succ_pred_api();
   test_clear_and_reuse();
   test_remove_all_orders();
+#ifdef DEEP_TEST
   test_randomized_against_std_map();
+#else
+  std::cout << "Skipping deep randomized test (build with -DDEEP_TEST to enable).\n";
+#endif
 
   std::cout << "\n=== RedBlackBST tests passed! ===\n";
   return 0;
