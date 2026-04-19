@@ -2,9 +2,9 @@
 
 
 template <typename T, typename A = std::allocator<T>>
-class DoublyLinkedList : public Base::LinkedList_Base<T> {
+class DoublyLinkedList : public Base::LinkedListBase<T> {
  private:
-  using Node = NodeType::DoublyNode<T>;
+  using Node = NodeCore::DoublyNode<T>;
   using NodeAlloc = Allocator::NodeAllocator<Node, A>;
 
   NodeAlloc alloc;
@@ -65,7 +65,7 @@ class DoublyLinkedList : public Base::LinkedList_Base<T> {
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  explicit DoublyLinkedList(const A& alloc = A()) : Base::LinkedList_Base<T>(), alloc {alloc} {}
+  explicit DoublyLinkedList(const A& alloc = A()) : Base::LinkedListBase<T>(), alloc {alloc} {}
 
   iterator begin() { return iterator {static_cast<Node*>(this->head)}; }
   iterator end() { return iterator {nullptr}; }

@@ -2,23 +2,28 @@
 
 #include <cstddef>
 
-namespace aoi {
 
 #include "impl/nodeTypes.tpp"
+namespace aoi {
+
+#include "impl/nodeAllocator.tpp"
+
 
   namespace Base {
 
-    template <typename T>
-    class LinkedList_Base {
+    template <typename T, typename Derived, typename NodeType, typename A = std::allocator<T>>
+    class LinkedListBase {
 
      protected:
-      using Node = NodeType::SinglyNode<T>;
-
-      Node *head, *tail;
+      using Node = NodeT;
+      using NodeAlloc = Allocator::NodeAllocator<Node, A>;
+      NodeAlloc alloc;
+      Node* head;
+      Node* tail;
       size_t len;
 
      public:
-      LinkedList_Base() : head {nullptr}, tail {nullptr}, len {} {}
+      explicit LinkedListBase(const A& allocator = A()) : alloc {allocator}, head {nullptr}, tail {nullptr}, len {} {}
 
       virtual void push_front(T value) = 0;
       virtual void push_back(T value) = 0;
@@ -35,7 +40,7 @@ namespace aoi {
       bool empty() { return len == 0; }
 
       virtual void clear() = 0;
-      virtual ~LinkedList_Base() = default;
+      virtual ~LinkedListBase() = default;
     };
 
   }

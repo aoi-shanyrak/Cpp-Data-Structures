@@ -2,9 +2,9 @@
 
 
 template <typename T, typename A = std::allocator<T>>
-class SinglyLinkedList : public Base::LinkedList_Base<T> {
+class SinglyLinkedList : public Base::LinkedListBase<T> {
  private:
-  using Node = NodeType::SinglyNode<T>;
+  using Node = NodeCore::SinglyNode<T>;
   using NodeAlloc = Allocator::NodeAllocator<Node, A>;
 
   NodeAlloc alloc;
@@ -53,7 +53,7 @@ class SinglyLinkedList : public Base::LinkedList_Base<T> {
   using iterator = Iterator<false>;
   using const_iterator = Iterator<true>;
 
-  explicit SinglyLinkedList(const A& alloc = A()) : Base::LinkedList_Base<T>(), alloc {alloc} {}
+  explicit SinglyLinkedList(const A& alloc = A()) : Base::LinkedListBase<T>(), alloc {alloc} {}
 
   iterator begin() { return iterator {this->head}; }
   iterator end() { return iterator {nullptr}; }
