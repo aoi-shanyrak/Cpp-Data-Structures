@@ -14,30 +14,30 @@ concept ListNode = requires(NodeType n, const NodeType cn, T value) {
 template <typename T>
 struct SinglyNode {
   T data;
-  SinglyNode* next = nullptr;
+  SinglyNode* m_next = nullptr;
 
   static T& value(SinglyNode& n) { return n.data; }
   static const T& value(const SinglyNode& n) { return n.data; }
-  static SinglyNode* next(SinglyNode& n) { return n.next; }
-  static const SinglyNode* next(const SinglyNode& n) { return n.next; }
+  static SinglyNode* next(SinglyNode& n) { return n.m_next; }
+  static const SinglyNode* next(const SinglyNode& n) { return n.m_next; }
   static void set_value(SinglyNode& n, T&& v) { n.data = std::move(v); }
-  static void set_next(SinglyNode& n, SinglyNode* p) { n.next = p; }
-  static void construct(void* ptr, T& value) { new (ptr) SinglyNode {value, nullptr}; }
+  static void set_next(SinglyNode& n, SinglyNode* p) { n.m_next = p; }
+  static void construct(void* ptr, const T& value) { new (ptr) SinglyNode {value, nullptr}; }
   static void destroy(void* ptr) { static_cast<SinglyNode*>(ptr)->~SinglyNode(); }
 };
 
 
 template <typename T>
 struct DoublyNode : public SinglyNode<T> {
-  DoublyNode* prev = nullptr;
+  DoublyNode* m_prev = nullptr;
 
-  static DoublyNode* next(DoublyNode& n) { return static_cast<DoublyNode*>(n.next); }
-  static const DoublyNode* next(const DoublyNode& n) { return static_cast<const DoublyNode*>(n.next); }
-  static DoublyNode* prev(DoublyNode& n) { return static_cast<DoublyNode*>(n.prev); }
-  static const DoublyNode* prev(const DoublyNode& n) { return static_cast<const DoublyNode*>(n.prev); }
+  static DoublyNode* next(DoublyNode& n) { return static_cast<DoublyNode*>(n.m_next); }
+  static const DoublyNode* next(const DoublyNode& n) { return static_cast<const DoublyNode*>(n.m_next); }
+  static DoublyNode* prev(DoublyNode& n) { return static_cast<DoublyNode*>(n.m_prev); }
+  static const DoublyNode* prev(const DoublyNode& n) { return static_cast<const DoublyNode*>(n.m_prev); }
 
-  static void set_next(DoublyNode& n, DoublyNode* p) { n.next = p; }
-  static void set_prev(DoublyNode& n, DoublyNode* p) { n.prev = p; }
+  static void set_next(DoublyNode& n, DoublyNode* p) { n.m_next = p; }
+  static void set_prev(DoublyNode& n, DoublyNode* p) { n.m_prev = p; }
 
-  static void construct(void* ptr, T& value) { new (ptr) DoublyNode {value, nullptr, nullptr}; }
+  static void construct(void* ptr, const T& value) { new (ptr) DoublyNode {value, nullptr, nullptr}; }
 };

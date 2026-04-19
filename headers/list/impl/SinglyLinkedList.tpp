@@ -2,173 +2,69 @@
 
 
 template <typename T, typename A = std::allocator<T>>
-class SinglyLinkedList : public Base::LinkedListBase<T> {
- private:
-  using Node = NodeCore::SinglyNode<T>;
-  using NodeAlloc = Allocator::NodeAllocator<Node, A>;
+class SinglyLinkedList : public Base::LinkedListBase<T, SinglyLinkedList<T, A>, SinglyNode<T>, A> {
+  using BaseList = Base::LinkedListBase<T, SinglyLinkedList<T, A>, SinglyNode<T>, A>;
+  using Node = SinglyNode<T>;
 
-  NodeAlloc alloc;
+  friend BaseList;
+
 
  public:
-  template <bool IsConst>
-  class Iterator {
-   private:
-    using NodePtr = std::conditional_t<IsConst, const Node*, Node*>;
-    NodePtr node;
+  explicit SinglyLinkedList(const A& alloc = A()) : BaseList {alloc} {}
 
-   public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = T;
-    using difference_type = std::ptrdiff_t;
-    using pointer = std::conditional_t<IsConst, const T*, T*>;
-    using reference = std::conditional_t<IsConst, const T&, T&>;
 
-    Iterator() = default;
-    explicit Iterator(NodePtr ptr = nullptr) : node(ptr) {}
-
-    template <bool OtherConst, typename = std::enable_if_t<IsConst && !OtherConst>>
-    Iterator(const Iterator<OtherConst>& other) : node(other.node) {}
-
-    reference operator*() const { return node->data; }
-    pointer operator->() const { return &node->data; }
-
-    Iterator& operator++() {
-      node = node->next;
-      return *this;
-    }
-    Iterator operator++(int) {
-      Iterator tmp = *this;
-      node = node->next;
-      return tmp;
-    }
-
-    friend bool operator==(const Iterator& a, const Iterator& b) { return a.node == b.node; }
-    friend bool operator!=(const Iterator& a, const Iterator& b) { return a.node != b.node; }
-
-    friend class SinglyLinkedList;
-  };
-  template <bool>
-  friend class Iterator;
-
-  using iterator = Iterator<false>;
-  using const_iterator = Iterator<true>;
-
-  explicit SinglyLinkedList(const A& alloc = A()) : Base::LinkedListBase<T>(), alloc {alloc} {}
-
-  iterator begin() { return iterator {this->head}; }
-  iterator end() { return iterator {nullptr}; }
-  const_iterator begin() const { return const_iterator {this->head}; }
-  const_iterator end() const { return const_iterator {nullptr}; }
-
-  iterator insert_after(iterator pos, T value) {
-    if (pos.node == nullptr) return end();
-
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
-
-    Node* target = static_cast<Node*>(pos.node);
-    new_node->next = target->next;
-    target->next = new_node;
-
-    if (!new_node->next) {
-      this->tail = new_node;
-    }
-
-    ++this->len;
-    return iterator {new_node};
-  }
-
-  iterator erase_after(iterator pos) {
-    if (pos.node == nullptr) return end();
-
-    Node* target = static_cast<Node*>(pos.node);
-    if (!target->next) return end();
-
-    Node* to_delete = target->next;
-    target->next = to_delete->next;
-
-    if (!target->next) {
-      this->tail = target;
-    }
-
-    to_delete->~SinglyNode();
-    alloc.deallocate(to_delete);
-    --this->len;
-
-    return iterator {target->next};
-  }
-
-  void push_front(T value) override {
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
-
-    new_node->next = this->head;
-    this->head = new_node;
-
-    if (!this->tail) {
-      this->tail = new_node;
-    }
-    ++this->len;
-  }
-  void push_back(T value) override {
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
-
-    if (!this->head) {
-      this->head = this->tail = new_node;
-    } else {
-      this->tail->next = new_node;
-      this->tail = new_node;
+  void push_back(const T& value) override {
+    Node* node {this->allocate_node(value)};
+    Node::set_next(*node, nullptr);
+    if (!this->head)
+      this->head = this->tail = node;
+    else {
+      Node::set_next(*this->tail, node);
+      this->tail = node;
     }
     ++this->len;
   }
 
-  void pop_front() override {
-    if (this->empty()) throw std::runtime_error("SinglyLinkedList is empty");
-
-    Node* node = this->head;
-    this->head = node->next;
-    if (!this->head) {
-      this->tail = nullptr;
-    }
-    node->~SinglyNode();
-    alloc.deallocate(node);
-    --this->len;
-  }
   void pop_back() override {
-    if (this->empty()) throw std::runtime_error("SinglyLinkedList is empty");
     if (this->len == 1) {
-      pop_front();
+      this->pop_front();
       return;
     }
-    Node* prev = this->head;
-    while (prev->next != this->tail) {
-      prev = prev->next;
+    Node* prev {this->head};
+    while (Node::next(*prev) != this->tail) {
+      prev = Node::next(*prev);
     }
-    this->tail->~SinglyNode();
-    alloc.deallocate(this->tail);
-
+    this->deallocate_node(this->tail);
     this->tail = prev;
-    this->tail->next = nullptr;
+    Node::set_next(*prev, nullptr);
     --this->len;
   }
 
-  T& front() override { return this->head->data; }
-  T& back() override { return this->tail->data; }
-  const T& front() const override { return this->head->data; }
-  const T& back() const override { return this->tail->data; }
 
-  void clear() override {
-    Node* current = this->head;
-    while (current) {
-      Node* next = current->next;
-      current->~SinglyNode();
-      alloc.deallocate(current);
-      current = next;
-    }
-    this->head = this->tail = nullptr;
-    this->len = 0;
+  typename BaseList::iterator insert_after(typename BaseList::iterator pos, const T& value) {
+    Node* target {pos.raw()};
+    if (!target) return this->end();
+
+    Node* node {this->allocate_node(value)};
+    Node::set_next(*node, Node::next(*target));
+    Node::set_next(*target, node);
+
+    if (!Node::next(*node)) this->tail = node;
+    ++this->len;
+
+    return typename BaseList::iterator(node);
   }
 
-  ~SinglyLinkedList() { clear(); }
+  typename BaseList::iterator erase_after(typename BaseList::iterator pos) {
+    Node* target {pos.raw()};
+    if (!target || !Node::next(*target)) return this->end();
+
+    Node* to_del {Node::next(*target)};
+    Node::set_next(*target, Node::next(*to_del));
+
+    if (!Node::next(*target)) this->tail = target;
+    this->deallocate_node(to_del);
+    --this->len;
+    return typename BaseList::iterator(Node::next(*target));
+  }
 };

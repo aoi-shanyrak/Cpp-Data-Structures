@@ -1,9 +1,9 @@
 #pragma once
 
 
-#include "impl/nodeTypes.tpp"
+#include "nodeTypes.tpp"
 
-#include "impl/nodeAllocator.tpp"
+#include "nodeAllocator.tpp"
 
 
 namespace Base {
@@ -33,7 +33,7 @@ namespace Base {
    public:
     template <bool IsConst>
     class Iterator {
-     private:
+     protected:
       using NodePtr = std::conditional_t<IsConst, const NodeType*, NodeType*>;
       NodePtr node;
 

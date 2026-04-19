@@ -2,223 +2,142 @@
 
 
 template <typename T, typename A = std::allocator<T>>
-class DoublyLinkedList : public Base::LinkedListBase<T> {
- private:
-  using Node = NodeCore::DoublyNode<T>;
-  using NodeAlloc = Allocator::NodeAllocator<Node, A>;
+class DoublyLinkedList : public Base::LinkedListBase<T, DoublyLinkedList<T, A>, DoublyNode<T>, A> {
+  using BaseList = Base::LinkedListBase<T, DoublyLinkedList<T, A>, DoublyNode<T>, A>;
+  using Node = DoublyNode<T>;
 
-  NodeAlloc alloc;
+  friend BaseList;
+
 
  public:
   template <bool IsConst>
-  class Iterator {
-   private:
-    using NodePtr = std::conditional_t<IsConst, const Node*, Node*>;
-    NodePtr node;
+  class Iterator : public BaseList::template Iterator<IsConst> {
+    using BaseIter = typename BaseList::template Iterator<IsConst>;
 
    public:
     using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = T;
-    using difference_type = std::ptrdiff_t;
-    using pointer = std::conditional_t<IsConst, const T*, T*>;
-    using reference = std::conditional_t<IsConst, const T&, T&>;
 
     Iterator() = default;
-    explicit Iterator(NodePtr ptr = nullptr) : node(ptr) {}
+    explicit Iterator(typename BaseIter::NodePtr ptr) : BaseIter {ptr} {}
 
     template <bool OtherConst, typename = std::enable_if_t<IsConst && !OtherConst>>
-    Iterator(const Iterator<OtherConst>& other) : node(other.node) {}
-
-    reference operator*() const { return node->data; }
-    pointer operator->() const { return &node->data; }
-
-    Iterator& operator++() {
-      node = static_cast<NodePtr>(node->next);
-      return *this;
-    }
-    Iterator operator++(int) {
-      Iterator tmp = *this;
-      node = static_cast<NodePtr>(node->next);
-      return tmp;
-    }
+    Iterator(const Iterator<OtherConst>& other) : BaseIter {other} {}
 
     Iterator& operator--() {
-      node = node->prev;
+      this->node = Node::prev(*this->node);
       return *this;
     }
-    Iterator operator--(int) {
-      Iterator tmp = *this;
-      node = node->prev;
+    Iterator& operator--(int) {
+      Iterator tmp {*this};
+      this->node = Node::prev(*this->node);
       return tmp;
     }
-
-    friend bool operator==(const Iterator& a, const Iterator& b) { return a.node == b.node; }
-    friend bool operator!=(const Iterator& a, const Iterator& b) { return a.node != b.node; }
-
-    friend class DoublyLinkedList;
   };
-  template <bool>
-  friend class Iterator;
 
   using iterator = Iterator<false>;
   using const_iterator = Iterator<true>;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-  explicit DoublyLinkedList(const A& alloc = A()) : Base::LinkedListBase<T>(), alloc {alloc} {}
+  iterator begin() { return iterator(this->head); }
+  iterator end() { return iterator(nullptr); }
+  const_iterator begin() const { return const_iterator(this->head); }
+  const_iterator end() const { return const_iterator(nullptr); }
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
+  reverse_iterator rend() { return reverse_iterator(begin()); }
+  const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+  const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
 
-  iterator begin() { return iterator {static_cast<Node*>(this->head)}; }
-  iterator end() { return iterator {nullptr}; }
-  const_iterator begin() const { return const_iterator {static_cast<const Node*>(this->head)}; }
-  const_iterator end() const { return const_iterator {nullptr}; }
 
-  reverse_iterator rbegin() { return reverse_iterator {end()}; }
-  reverse_iterator rend() { return reverse_iterator {begin()}; }
-  const_reverse_iterator rbegin() const { return const_reverse_iterator {end()}; }
-  const_reverse_iterator rend() const { return const_reverse_iterator {begin()}; }
+  explicit DoublyLinkedList(const A& alloc = A()) : BaseList {alloc} {}
 
-  iterator insert(iterator pos, T value) {
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
+  void push_front(const T& value) {
+    Node* node {this->allocate_node(value)};
+    Node::set_next(*node, this->head);
+    Node::set_prev(*node, nullptr);
 
-    if (pos.node == nullptr) {
-      new_node->next = nullptr;
-      new_node->prev = static_cast<Node*>(this->tail);
-      if (this->tail) {
-        static_cast<Node*>(this->tail)->next = new_node;
-      }
-      this->tail = new_node;
-      if (!this->head) {
-        this->head = new_node;
-      }
-    } else {
-      Node* target = static_cast<Node*>(pos.node);
-      new_node->next = target;
-      new_node->prev = target->prev;
-
-      if (target->prev) {
-        static_cast<Node*>(target->prev)->next = new_node;
-      } else {
-        this->head = new_node;
-      }
-      target->prev = new_node;
-    }
-
-    ++this->len;
-    return iterator {new_node};
-  }
-
-  iterator erase(iterator pos) {
-    if (pos.node == nullptr) return pos;
-
-    Node* node = static_cast<Node*>(pos.node);
-    Node* next = static_cast<Node*>(node->next);
-
-    if (node->prev) {
-      static_cast<Node*>(node->prev)->next = node->next;
-    } else {
-      this->head = node->next;
-    }
-
-    if (node->next) {
-      static_cast<Node*>(node->next)->prev = node->prev;
-    } else {
-      this->tail = node->prev;
-    }
-
-    node->~DoublyNode();
-    alloc.deallocate(node);
-    --this->len;
-
-    return iterator {next};
-  }
-
-  void push_front(T value) override {
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
-
-    new_node->next = this->head;
-    new_node->prev = nullptr;
-
-    if (this->head) {
-      static_cast<Node*>(this->head)->prev = new_node;
-    }
-    this->head = new_node;
-
-    if (!this->tail) {
-      this->tail = new_node;
-    }
+    if (this->head) Node::set_prev(*static_cast<Node*>(this->head), node);
+    this->head = node;
+    if (!this->tail) this->tail = node;
     ++this->len;
   }
 
-  void push_back(T value) override {
-    Node* new_node = alloc.allocate();
-    new (new_node) Node {std::move(value)};
+  void push_back(const T& value) override {
+    Node* node {this->allocate_node(value)};
+    Node::set_next(*node, nullptr);
+    Node::set_prev(*node, static_cast<Node*>(this->tail));
 
-    new_node->next = nullptr;
-    new_node->prev = static_cast<Node*>(this->tail);
-
-    if (this->tail) {
-      static_cast<Node*>(this->tail)->next = new_node;
-    }
-    this->tail = new_node;
-
-    if (!this->head) {
-      this->head = new_node;
-    }
+    if (this->tail) Node::set_next(*static_cast<Node*>(this->tail), node);
+    this->tail = node;
+    if (!this->head) this->head = node;
     ++this->len;
   }
 
-  void pop_front() override {
-    if (this->empty()) throw std::runtime_error("DoublyLinkedList is empty");
-
-    Node* node = static_cast<Node*>(this->head);
-    this->head = node->next;
-
-    if (this->head) {
-      static_cast<Node*>(this->head)->prev = nullptr;
-    } else {
+  void pop_front() {
+    Node* node {static_cast<Node*>(this->head)};
+    this->head = Node::next(*node);
+    if (this->head)
+      Node::set_prev(*static_cast<Node*>(this->head), nullptr);
+    else
       this->tail = nullptr;
-    }
-
-    node->~DoublyNode();
-    alloc.deallocate(node);
+    this->deallocate_node(node);
     --this->len;
   }
 
   void pop_back() override {
-    if (this->empty()) throw std::runtime_error("DoublyLinkedList is empty");
-
-    Node* node = static_cast<Node*>(this->tail);
-    this->tail = node->prev;
-
-    if (this->tail) {
-      static_cast<Node*>(this->tail)->next = nullptr;
-    } else {
+    Node* node {static_cast<Node*>(this->tail)};
+    this->tail = Node::prev(*node);
+    if (this->tail)
+      Node::set_next(*static_cast<Node*>(this->tail), nullptr);
+    else
       this->head = nullptr;
-    }
-
-    node->~DoublyNode();
-    alloc.deallocate(node);
+    this->deallocate_node(node);
     --this->len;
   }
 
-  T& front() override { return static_cast<Node*>(this->head)->data; }
-  T& back() override { return static_cast<Node*>(this->tail)->data; }
-  const T& front() const override { return static_cast<const Node*>(this->head)->data; }
-  const T& back() const override { return static_cast<const Node*>(this->tail)->data; }
 
-  void clear() override {
-    Node* current = static_cast<Node*>(this->head);
-    while (current) {
-      Node* next = static_cast<Node*>(current->next);
-      current->~DoublyNode();
-      alloc.deallocate(current);
-      current = next;
+  iterator insert(iterator pos, const T& value) {
+    Node* target {pos.raw()};
+    Node* node {this->allocate_node(value)};
+
+    if (!target) {
+      Node::set_next(*node, nullptr);
+      Node::set_prev(*node, static_cast<Node*>(this->tail));
+      if (this->tail) Node::set_next(*static_cast<Node*>(this->tail), node);
+      this->tail = node;
+      if (!this->head) this->head = node;
+
+    } else {
+      Node* prev_node {Node::prev(*target)};
+      Node::set_next(*node, target);
+      Node::set_prev(*node, prev_node);
+      Node::set_prev(*target, node);
+      if (prev_node)
+        Node::set_next(*prev_node, node);
+      else
+        this->head = node;
     }
-    this->head = this->tail = nullptr;
-    this->len = 0;
+    ++this->len;
+    return iterator(node);
   }
 
-  ~DoublyLinkedList() { clear(); }
+  iterator erase(iterator pos) {
+    Node* node {pos.raw()};
+    if (!node) return end();
+
+    Node* next_node {Node::next(*node)};
+    Node* prev_node {Node::prev(*node)};
+    if (prev_node)
+      Node::set_next(*prev_node, next_node);
+    else
+      this->head = next_node;
+
+    if (next_node)
+      Node::set_prev(*next_node, prev_node);
+    else
+      this->tail = prev_node;
+    this->deallocate_node(node);
+    --this->len;
+    return iterator(next_node);
+  }
 };
