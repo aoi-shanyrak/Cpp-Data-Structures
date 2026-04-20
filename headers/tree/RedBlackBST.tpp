@@ -4,9 +4,11 @@
 #include <concepts>
 #include <cstdint>
 #include <deque>
+#include <iterator>
 #include <stack>
 #include <stdexcept>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -25,39 +27,152 @@ namespace aoi {
       Color color;
     };
 
+
    public:
     using key_type = K;
-    using value_type = T;
+    using mapped_type = T;
+    using value_type = std::pair<const K, T>;
+    using size_type = size_t;
+    using difference_type = std::ptrdiff_t;
     using Handle = index_type;
-
     static constexpr index_type nullindex = static_cast<index_type>(-1);
 
+
+    template <bool IsConst>
+    class Iterator;
+    using iterator = Iterator<false>;
+    using const_iterator = Iterator<true>;
+
+    iterator begin() noexcept { return iterator {this, get_extreme(root, nullindex, &Node::left).node}; }
+    iterator end() noexcept { return iterator {this, nullindex}; }
+    const_iterator begin() const noexcept {
+      return const_iterator {this, get_extreme(root, nullindex, &Node::left).node};
+    }
+    const_iterator end() const noexcept { return const_iterator {this, nullindex}; }
+    const_iterator cbegin() const noexcept {
+      return const_iterator {this, get_extreme(root, nullindex, &Node::left).node};
+    }
+    const_iterator cend() const noexcept { return const_iterator {this, nullindex}; }
+
+
     RedBlackBST() : data {}, freeList {}, root {nullindex} {}
+    RedBlackBST(const RedBlackBST& other) : RedBlackBST {} {
+      if (other.root == nullindex) return;
+      std::vector<std::pair<K, T>> elements;
+      elements.reserve(other.size());
+      other.traverse_in_order(other.root, elements);
+      if (!elements.empty()) {
+        root = build_balanced(elements, 0, elements.size() - 1, nullindex).node;
+      }
+    }
+    RedBlackBST& operator=(const RedBlackBST& other) {
+      if (this != &other) {
+        RedBlackBST temp {other};
+        *this = std::move(temp);
+      }
+      return *this;
+    }
+    RedBlackBST(RedBlackBST&& other) noexcept
+        : data {std::move(other.data)}, freeList {std::move(other.freeList)}, root {other.root} {
+      other.root = nullindex;
+      other.freeList = {};
+    }
 
-    RedBlackBST(const RedBlackBST&) = delete;
-    RedBlackBST& operator=(const RedBlackBST&) = delete;
+    RedBlackBST& operator=(RedBlackBST&& other) noexcept {
+      if (this != &other) {
+        clear();
+        data = std::move(other.data);
+        freeList = std::move(other.freeList);
+        root = other.root;
 
-    RedBlackBST(RedBlackBST&&) = default;
-    RedBlackBST& operator=(RedBlackBST&&) = default;
-
+        other.root = nullindex;
+        other.freeList = {};
+      }
+      return *this;
+    }
     ~RedBlackBST() { clear(); }
 
 
     template <std::convertible_to<K> UK>
-    const T& find(UK&& key) const {
-      index_type idx {search(std::forward<UK>(key))};
-      if (idx == nullindex) throw std::out_of_range("RedBlackBST::find key not found");
-      return value_of(idx);
+    iterator find(UK&& key) {
+      index_type idx {search_impl(std::forward<UK>(key)).node};
+      return iterator {this, idx};
+    }
+
+    template <std::convertible_to<K> UK>
+    const_iterator find(UK&& key) const {
+      index_type idx {search_impl(std::forward<UK>(key)).node};
+      return const_iterator {this, idx};
+    }
+
+    template <std::convertible_to<K> UK>
+    bool contains(UK&& key) const {
+      return search_impl(std::forward<UK>(key)).node != nullindex;
+    }
+
+    template <std::convertible_to<K> UK>
+    T& at(UK&& key) {
+      auto it {find(std::forward<UK>(key))};
+      if (it == end()) throw std::out_of_range("Key not found");
+      return it->second;
+    }
+
+    template <std::convertible_to<K> UK>
+    const T& at(UK&& key) const {
+      auto it {find(std::forward<UK>(key))};
+      if (it == end()) throw std::out_of_range("Key not found");
+      return it->second;
+    }
+
+    template <std::convertible_to<K> UK>
+    T& operator[](UK&& key) {
+      auto res {search_handle(std::forward<UK>(key))};
+      if (res == nullindex) {
+        auto [it, inserted] {insert(std::forward<UK>(key), T {})};
+        (void)inserted;
+        return get_by_handle(it.handle());
+      }
+      return get_by_handle(res);
+    }
+
+
+    template <std::convertible_to<value_type> UV>
+    std::pair<iterator, bool> insert(UV&& value) {
+      return insert_impl(std::forward<UV>(value).first, std::forward<UV>(value).second);
     }
 
     template <std::convertible_to<K> UK, std::convertible_to<T> UT>
-    void insert(UK key, UT value);
+    std::pair<iterator, bool> insert(UK&& key, UT&& value) {
+      return insert_impl(std::forward<UK>(key), std::forward<UT>(value));
+    }
+
+
+    template <std::convertible_to<K> UK>
+    size_type erase(UK&& key) {
+      SearchResult res {search_impl(std::forward<UK>(key))};
+      if (res.node == nullindex) return 0;
+      remove_node(res.node, res.is_left);
+      return 1;
+    }
+
+    iterator erase(iterator pos) {
+      if (pos == end()) return end();
+      index_type toDelete {pos.handle()};
+      index_type parent {parent_of(toDelete)};
+      bool is_left_toDelete {(parent != nullindex) && (left_of(parent) == toDelete)};
+
+      bool has_left {left_of(toDelete) != nullindex};
+      bool has_right {right_of(toDelete) != nullindex};
+      index_type next_handle {(has_left && has_right) ? toDelete : succ(toDelete)};
+
+      remove_node(toDelete, is_left_toDelete);
+      return (next_handle == nullindex) ? end() : iterator {this, next_handle};
+    }
+    iterator erase(const_iterator pos) { return erase(iterator {const_cast<RedBlackBST*>(this), pos.handle()}); }
 
     template <std::convertible_to<K> UK>
     void remove(UK&& key) {
-      SearchResult res {search_impl(std::forward<UK>(key))};
-      if (res.node == nullindex) return;
-      remove_node(res.node, res.is_left);
+      erase(std::forward<UK>(key));
     }
 
 
@@ -70,21 +185,21 @@ namespace aoi {
       return value_of(res.node);
     }
 
-
     template <std::convertible_to<K> UK>
-    Handle search(UK&& key) const {
-      auto res {search_impl(std::forward<UK>(key))};
-      return res.node;
+    Handle search_handle(UK&& key) const {
+      return search_impl(std::forward<UK>(key)).node;
     }
 
     Handle succ(Handle idx) const { return get_succ_or_pred(idx, true); }
     Handle pred(Handle idx) const { return get_succ_or_pred(idx, false); }
-
+    T& get_by_handle(Handle idx) { return value_of(idx); }
     const T& get_by_handle(Handle idx) const { return value_of(idx); }
 
 
-    bool empty() { return root == nullindex; }
-    size_t size() { return data.size() - freeList.size(); }
+    bool empty() const noexcept { return root == nullindex; }
+    size_type size() const noexcept { return data.size() - freeList.size(); }
+
+    void shrink_to_fit();
 
     void clear() noexcept {
       clear_subtree(root);
@@ -125,6 +240,9 @@ namespace aoi {
     }
 
 
+    template <std::convertible_to<K> UK, std::convertible_to<T> UT>
+    std::pair<iterator, bool> insert_impl(UK&& key, UT&& value);
+
     void remove_node(index_type toDelete, bool is_left_toDelete);
 
     void balance_after_insert(index_type New);
@@ -156,10 +274,17 @@ namespace aoi {
       index_type node;
       size_t height;
     };
-    void shrink_to_fit();
     void extract_in_order(index_type idx, std::vector<std::pair<K, T>>& out);
     BuildResult build_balanced(const std::vector<std::pair<K, T>>& elements, size_t start, size_t end,
                                index_type parent);
+    void traverse_in_order(index_type idx, std::vector<std::pair<K, T>>& out) const {
+      if (idx == nullindex) return;
+      const Node& node {node_at(idx)};
+
+      traverse_in_order(node.left, out);
+      out.emplace_back(node.key, node.value);
+      traverse_in_order(node.right, out);
+    }
 
     template <std::convertible_to<K> UK, std::convertible_to<T> UT>
     index_type new_node(UK&& key, UT&& value);
@@ -176,6 +301,96 @@ namespace aoi {
       clear_subtree(node.right);
       delete_node(idx);
     }
+  };
+
+  template <typename K, typename T>
+  template <bool IsConst>
+  class RedBlackBST<K, T>::Iterator {
+    using tree_type = RedBlackBST<K, T>;
+    using tree_pointer = std::conditional_t<IsConst, const tree_type*, tree_type*>;
+    using node_type = typename tree_type::Node;
+    using node_reference = std::conditional_t<IsConst, const node_type&, node_type&>;
+
+   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = std::pair<const K, T>;
+
+    struct reference {
+      const K& first;
+      std::conditional_t<IsConst, const T&, T&> second;
+    };
+
+    struct pointer {
+      explicit pointer(reference ref) : ref_ {ref} {}
+      const reference* operator->() const { return &ref_; }
+
+     private:
+      reference ref_;
+    };
+
+
+    Iterator() : tree {nullptr}, idx {tree_type::nullindex} {}
+
+    Iterator(tree_pointer tree_, typename tree_type::index_type idx_) noexcept : tree {tree_}, idx {idx_} {}
+
+    template <bool OtherConst, typename = std::enable_if_t<IsConst && !OtherConst>>
+    Iterator(const Iterator<OtherConst>& other) noexcept : tree {other.tree}, idx {other.idx} {}
+
+
+    node_reference current_node() const { return tree->node_at(idx); }
+
+    reference operator*() const {
+      auto& node {current_node()};
+      return reference {node.key, node.value};
+    }
+    pointer operator->() const { return pointer {operator*()}; }
+
+    Iterator& operator++() {
+      if (idx != tree_type::nullindex) idx = tree->succ(idx);
+      return *this;
+    }
+
+    Iterator operator++(int) {
+      Iterator tmp {*this};
+      ++(*this);
+      return tmp;
+    }
+
+    Iterator& operator--() {
+      if (idx == tree_type::nullindex)
+        idx = tree->get_extreme(tree->root, tree_type::nullindex, &tree_type::Node::right).node;
+      else
+        idx = tree->pred(idx);
+      return *this;
+    }
+
+    Iterator operator--(int) {
+      Iterator tmp {*this};
+      --(*this);
+      return tmp;
+    }
+
+    template <bool OtherConst>
+    bool operator==(const Iterator<OtherConst>& other) const {
+      return tree == other.tree && idx == other.idx;
+    }
+
+    template <bool OtherConst>
+    bool operator!=(const Iterator<OtherConst>& other) const {
+      return !(*this == other);
+    }
+
+    Handle handle() const { return idx; }
+
+
+   private:
+    tree_pointer tree;
+    typename tree_type::index_type idx;
+
+    friend class RedBlackBST<K, T>;
+    template <bool>
+    friend class Iterator;
   };
 
 
@@ -204,12 +419,12 @@ namespace aoi {
 
   template <typename K, typename T>
   template <std::convertible_to<K> UK, std::convertible_to<T> UT>
-  void RedBlackBST<K, T>::insert(UK key, UT value) {
+  auto RedBlackBST<K, T>::insert_impl(UK&& key, UT&& value) -> std::pair<iterator, bool> {
     SearchResult res {search_impl(std::forward<UK>(key))};
 
     if (res.node != nullindex) {
       value_of(res.node) = std::forward<UT>(value);
-      return;
+      return {iterator(this, res.node), false};
     }
 
     index_type new_idx {new_node(std::forward<UK>(key), std::forward<UT>(value))};
@@ -218,7 +433,6 @@ namespace aoi {
     if (res.parent == nullindex) {
       root = new_idx;
       color_of(root) = Color::Black;
-      return;
 
     } else if (res.is_left)
       left_of(res.parent) = new_idx;
@@ -226,6 +440,7 @@ namespace aoi {
       right_of(res.parent) = new_idx;
 
     balance_after_insert(new_idx);
+    return {iterator(this, new_idx), true};
   }
 
   template <typename K, typename T>
@@ -288,10 +503,6 @@ namespace aoi {
           balance_after_delete(parent, is_left_toDelete);
         }
       }
-    }
-
-    if (size() < data.size() / 4) {
-      shrink_to_fit();
     }
   }
 
@@ -492,19 +703,21 @@ namespace aoi {
     }
 
     root = build_balanced(elements, 0, elements.size() - 1, nullindex).node;
+    color_of(root) = Color::Black;
   }
 
   template <typename K, typename T>
   void RedBlackBST<K, T>::extract_in_order(index_type idx, std::vector<std::pair<K, T>>& out) {
     if (idx == nullindex) return;
     Node& node {node_at(idx)};
+    auto right {right_of(idx)};
 
     extract_in_order(node.left, out);
 
     out.emplace_back(std::move(node.key), std::move(node.value));
     delete_node(idx);
 
-    extract_in_order(node.right, out);
+    extract_in_order(right, out);
   }
 
   template <typename K, typename T>
