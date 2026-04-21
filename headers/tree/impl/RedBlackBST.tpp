@@ -14,7 +14,7 @@
 
 namespace aoi {
 
-  template <typename K, typename T>
+  template <typename K, typename T, typename Compare = std::less<K>>
   class RedBlackBST {
     using index_type = uint32_t;
 
@@ -23,7 +23,7 @@ namespace aoi {
     struct Node {
       index_type parent, left, right;
       K key;
-      T value;
+      [[no_unique_address]] T value;
       Color color;
     };
 
@@ -34,8 +34,21 @@ namespace aoi {
     using value_type = std::pair<const K, T>;
     using size_type = size_t;
     using difference_type = std::ptrdiff_t;
+    using key_compare = Compare;
     using Handle = index_type;
     static constexpr index_type nullindex = static_cast<index_type>(-1);
+
+
+    class value_compare {
+      friend class RedBlackBST;
+
+     protected:
+      Compare comp;
+      value_compare(Compare c = Compare()) : comp(c) {}
+
+     public:
+      bool operator()(const value_type& lhs, const value_type& rhs) const { return comp(lhs.first, rhs.first); }
+    };
 
 
     template <bool IsConst>
@@ -55,8 +68,13 @@ namespace aoi {
     const_iterator cend() const noexcept { return const_iterator {this, nullindex}; }
 
 
-    RedBlackBST() : data {}, freeList {}, root {nullindex} {}
-    RedBlackBST(const RedBlackBST& other) : RedBlackBST {} {
+    RedBlackBST() : data {}, freeList {}, root {nullindex}, valid_iterators_counter {0}, comp {} {}
+    explicit RedBlackBST(const Compare& comp)
+        : data {}, freeList {}, root {nullindex}, valid_iterators_counter {0}, comp {comp} {}
+    explicit RedBlackBST(Compare&& comp)
+        : data {}, freeList {}, root {nullindex}, valid_iterators_counter {0}, comp {std::move(comp)} {}
+
+    RedBlackBST(const RedBlackBST& other) : RedBlackBST {other.comp} {
       if (other.root == nullindex) return;
       std::vector<std::pair<K, T>> elements;
       elements.reserve(other.size());
@@ -73,9 +91,12 @@ namespace aoi {
       return *this;
     }
     RedBlackBST(RedBlackBST&& other) noexcept
-        : data {std::move(other.data)}, freeList {std::move(other.freeList)}, root {other.root} {
+        : data {std::move(other.data)}, freeList {std::move(other.freeList)}, root {other.root},
+          valid_iterators_counter {other.valid_iterators_counter}, comp {std::move(other.comp)} {
       other.root = nullindex;
       other.freeList = {};
+      other.valid_iterators_counter = 0;
+      other.comp = Compare {};
     }
 
     RedBlackBST& operator=(RedBlackBST&& other) noexcept {
@@ -84,9 +105,13 @@ namespace aoi {
         data = std::move(other.data);
         freeList = std::move(other.freeList);
         root = other.root;
+        valid_iterators_counter = other.valid_iterators_counter;
+        comp = std::move(other.comp);
 
         other.root = nullindex;
         other.freeList = {};
+        other.valid_iterators_counter = 0;
+        other.comp = Compare {};
       }
       return *this;
     }
@@ -199,6 +224,8 @@ namespace aoi {
     bool empty() const noexcept { return root == nullindex; }
     size_type size() const noexcept { return data.size() - freeList.size(); }
 
+    bool valid_iterators_exist() const noexcept { return valid_iterators_counter > 0; }
+
     void shrink_to_fit();
 
     void clear() noexcept {
@@ -206,6 +233,8 @@ namespace aoi {
       data = {};
       freeList = {};
       root = nullindex;
+      valid_iterators_counter = 0;
+      comp = Compare {};
     }
 
 
@@ -215,7 +244,12 @@ namespace aoi {
     std::deque<Storage> data;
     std::stack<index_type> freeList;
     index_type root;
+    mutable size_type valid_iterators_counter;
+    [[no_unique_address]] Compare comp;
 
+
+    void acquire_iterator() const noexcept { ++valid_iterators_counter; }
+    void release_iterator() const noexcept { --valid_iterators_counter; }
 
     struct SearchResult {
       index_type node;
@@ -303,10 +337,10 @@ namespace aoi {
     }
   };
 
-  template <typename K, typename T>
+  template <typename K, typename T, typename Compare>
   template <bool IsConst>
-  class RedBlackBST<K, T>::Iterator {
-    using tree_type = RedBlackBST<K, T>;
+  class RedBlackBST<K, T, Compare>::Iterator {
+    using tree_type = RedBlackBST<K, T, Compare>;
     using tree_pointer = std::conditional_t<IsConst, const tree_type*, tree_type*>;
     using node_type = typename tree_type::Node;
     using node_reference = std::conditional_t<IsConst, const node_type&, node_type&>;
@@ -319,6 +353,23 @@ namespace aoi {
     struct reference {
       const K& first;
       std::conditional_t<IsConst, const T&, T&> second;
+
+      friend bool operator==(const reference& lhs, const reference& rhs) {
+        if (!(lhs.first == rhs.first)) return false;
+        if constexpr (requires { lhs.second == rhs.second; }) {
+          return lhs.second == rhs.second;
+        }
+        return true;
+      }
+
+      friend bool operator<(const reference& lhs, const reference& rhs) {
+        if (lhs.first < rhs.first) return true;
+        if (rhs.first < lhs.first) return false;
+        if constexpr (requires { lhs.second < rhs.second; }) {
+          return lhs.second < rhs.second;
+        }
+        return false;
+      }
     };
 
     struct pointer {
@@ -332,10 +383,38 @@ namespace aoi {
 
     Iterator() : tree {nullptr}, idx {tree_type::nullindex} {}
 
-    Iterator(tree_pointer tree_, typename tree_type::index_type idx_) noexcept : tree {tree_}, idx {idx_} {}
-
+    Iterator(tree_pointer tree, typename tree_type::index_type idx_) noexcept : tree {tree}, idx {idx_} {
+      if (tree) tree->acquire_iterator();
+    }
+    Iterator(const Iterator& other) noexcept : tree {other.tree}, idx {other.idx} {
+      if (tree) tree->acquire_iterator();
+    }
     template <bool OtherConst, typename = std::enable_if_t<IsConst && !OtherConst>>
-    Iterator(const Iterator<OtherConst>& other) noexcept : tree {other.tree}, idx {other.idx} {}
+    Iterator(const Iterator<OtherConst>& other) noexcept : tree {other.tree}, idx {other.idx} {
+      if (tree) tree->acquire_iterator();
+    }
+    Iterator& operator=(const Iterator& other) noexcept {
+      if (this != &other) {
+        if (tree) tree->release_iterator();
+        tree = other.tree;
+        idx = other.idx;
+        if (tree) tree->acquire_iterator();
+      }
+      return *this;
+    }
+    Iterator(Iterator&& other) noexcept
+        : tree {std::exchange(other.tree, nullptr)}, idx {std::exchange(other.idx, tree_type::nullindex)} {}
+    Iterator& operator=(Iterator&& other) noexcept {
+      if (this != &other) {
+        if (tree) tree->release_iterator();
+        tree = std::exchange(other.tree, nullptr);
+        idx = std::exchange(other.idx, tree_type::nullindex);
+      }
+      return *this;
+    }
+    ~Iterator() {
+      if (tree) tree->release_iterator();
+    }
 
 
     node_reference current_node() const { return tree->node_at(idx); }
@@ -394,8 +473,8 @@ namespace aoi {
   };
 
 
-  template <typename K, typename T>
-  auto RedBlackBST<K, T>::get_succ_or_pred(index_type idx, bool get_succ) const -> index_type {
+  template <typename K, typename T, typename Compare>
+  auto RedBlackBST<K, T, Compare>::get_succ_or_pred(index_type idx, bool get_succ) const -> index_type {
     if (idx == nullindex) return nullindex;
 
     index_type Node::*direction {get_succ ? &Node::right : &Node::left};
@@ -417,9 +496,9 @@ namespace aoi {
   }
 
 
-  template <typename K, typename T>
+  template <typename K, typename T, typename Compare>
   template <std::convertible_to<K> UK, std::convertible_to<T> UT>
-  auto RedBlackBST<K, T>::insert_impl(UK&& key, UT&& value) -> std::pair<iterator, bool> {
+  auto RedBlackBST<K, T, Compare>::insert_impl(UK&& key, UT&& value) -> std::pair<iterator, bool> {
     SearchResult res {search_impl(std::forward<UK>(key))};
 
     if (res.node != nullindex) {
@@ -443,8 +522,8 @@ namespace aoi {
     return {iterator(this, new_idx), true};
   }
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::remove_node(index_type toDelete, bool is_left_toDelete) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::remove_node(index_type toDelete, bool is_left_toDelete) {
     index_type parent {parent_of(toDelete)};
 
     int amount_of_children {(left_of(toDelete) != nullindex) + (right_of(toDelete) != nullindex)};
@@ -504,24 +583,27 @@ namespace aoi {
         }
       }
     }
+    if (size() < data.size() / 4) {
+      shrink_to_fit();
+    }
   }
 
 
-  template <typename K, typename T>
+  template <typename K, typename T, typename Compare>
   template <std::convertible_to<K> UK>
-  auto RedBlackBST<K, T>::search_impl(UK&& key) const -> SearchResult {
+  auto RedBlackBST<K, T, Compare>::search_impl(UK&& key) const -> SearchResult {
     index_type parent {nullindex};
     index_type cur {root};
     bool is_left {false};
 
     while (cur != nullindex) {
       const Node& node {node_at(cur)};
-      if (key < node.key) {
+      if (comp(key, node.key)) {
         parent = cur;
         cur = node.left;
         is_left = true;
 
-      } else if (key > node.key) {
+      } else if (comp(node.key, key)) {
         parent = cur;
         cur = node.right;
         is_left = false;
@@ -534,8 +616,8 @@ namespace aoi {
   }
 
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::balance_after_insert(index_type New) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::balance_after_insert(index_type New) {
     while (New != root && color_of(parent_of(New)) == Color::Red) {
       index_type parent {parent_of(New)};
       index_type grandpa {parent_of(parent)};
@@ -572,8 +654,8 @@ namespace aoi {
     color_of(root) = Color::Black;
   }
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::balance_after_delete(index_type parent, bool is_left_deleted) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::balance_after_delete(index_type parent, bool is_left_deleted) {
     while (parent != nullindex) {
       index_type sibling {is_left_deleted ? right_of(parent) : left_of(parent)};
 
@@ -640,8 +722,8 @@ namespace aoi {
   }
 
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::rotate_left(index_type x_idx) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::rotate_left(index_type x_idx) {
     Node& x {node_at(x_idx)};
     index_type y_idx {x.right};
     Node& y {node_at(y_idx)};
@@ -664,8 +746,8 @@ namespace aoi {
     x.parent = y_idx;
   }
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::rotate_right(index_type y_idx) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::rotate_right(index_type y_idx) {
     Node& y {node_at(y_idx)};
     index_type x_idx {y.left};
     Node& x {node_at(x_idx)};
@@ -689,8 +771,8 @@ namespace aoi {
   }
 
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::shrink_to_fit() {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::shrink_to_fit() {
     std::vector<std::pair<K, T>> elements;
     elements.reserve(size());
     extract_in_order(root, elements);
@@ -706,8 +788,8 @@ namespace aoi {
     color_of(root) = Color::Black;
   }
 
-  template <typename K, typename T>
-  void RedBlackBST<K, T>::extract_in_order(index_type idx, std::vector<std::pair<K, T>>& out) {
+  template <typename K, typename T, typename Compare>
+  void RedBlackBST<K, T, Compare>::extract_in_order(index_type idx, std::vector<std::pair<K, T>>& out) {
     if (idx == nullindex) return;
     Node& node {node_at(idx)};
     auto right {right_of(idx)};
@@ -720,9 +802,9 @@ namespace aoi {
     extract_in_order(right, out);
   }
 
-  template <typename K, typename T>
-  auto RedBlackBST<K, T>::build_balanced(const std::vector<std::pair<K, T>>& elements, size_t start, size_t end,
-                                         index_type parent) -> BuildResult {
+  template <typename K, typename T, typename Compare>
+  auto RedBlackBST<K, T, Compare>::build_balanced(const std::vector<std::pair<K, T>>& elements, size_t start,
+                                                  size_t end, index_type parent) -> BuildResult {
     if (start > end) return {nullindex, 0};
 
     size_t middle {(start + end) / 2};
@@ -751,9 +833,9 @@ namespace aoi {
   }
 
 
-  template <typename K, typename T>
+  template <typename K, typename T, typename Compare>
   template <std::convertible_to<K> UK, std::convertible_to<T> UT>
-  auto RedBlackBST<K, T>::new_node(UK&& key, UT&& value) -> index_type {
+  auto RedBlackBST<K, T, Compare>::new_node(UK&& key, UT&& value) -> index_type {
     index_type idx;
     if (!freeList.empty()) {
       idx = freeList.top();
