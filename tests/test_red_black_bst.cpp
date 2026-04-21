@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "../headers/tree/RedBlackBST.tpp"
+#include "../headers/tree/impl/RedBlackBST.tpp"
 
 using namespace aoi;
 
