@@ -148,7 +148,7 @@ namespace aoi {
         if (data[i] != 0xFF) return false;
       }
       size_t tail_bits {bit_count % 8};
-      bitStorage_t mask {tail_bits == 0 ? 0xFF : (1 << tail_bits) - 1};
+      bitStorage_t mask = tail_bits == 0 ? 0xFF : (1 << tail_bits) - 1;
       return (data.back() & mask) == mask;
     }
 
@@ -162,7 +162,7 @@ namespace aoi {
 
     size_t count() const noexcept {
       size_t total {0};
-      for (const auto& byte : data) total += std::popcount(byte);
+      for (const auto& byte : data) total += std::__popcount(byte);
       return total;
     }
 
@@ -224,14 +224,15 @@ namespace aoi {
 
 
    private:
-    std::vector<bitStorage_t> data;
     size_t bit_count;
+    std::vector<bitStorage_t> data;
+
 
     void sanitize_tail() noexcept {
       if (bit_count == 0) return;
       size_t tail_bits {bit_count % 8};
       if (tail_bits > 0) {
-        bitStorage_t mask {(1 << tail_bits) - 1};
+        bitStorage_t mask = (1 << tail_bits) - 1;
         data.back() &= mask;
       }
     }
@@ -306,7 +307,7 @@ namespace aoi {
 
     } else {
       for (size_t i = data.size(); i-- > byte_shift;) {
-        bitStorage_t low {(i > byte_shift) ? data[i - byte_shift - 1] : 0};
+        bitStorage_t low = (i > byte_shift) ? data[i - byte_shift - 1] : 0;
         bitStorage_t high {data[i - byte_shift]};
         data[i] = (high << bit_shift) | (low >> (8 - bit_shift));
       }
@@ -332,8 +333,8 @@ namespace aoi {
 
     } else {
       for (size_t i = 0; i + byte_shift < data.size(); ++i) {
-        uint8_t low {data[i + byte_shift] >> bit_shift};
-        uint8_t high {(i + byte_shift + 1 < data.size()) ? data[i + byte_shift + 1] << (8 - bit_shift) : 0};
+        uint8_t low = data[i + byte_shift] >> bit_shift;
+        uint8_t high = (i + byte_shift + 1 < data.size()) ? data[i + byte_shift + 1] << (8 - bit_shift) : 0;
         data[i] = low | high;
       }
       for (size_t i = data.size() - byte_shift; i < data.size(); ++i) data[i] = 0;

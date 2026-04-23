@@ -120,5 +120,3 @@ Run deep tests (longer execution):
 ```bash
 make deeptest
 ```
-
-
