@@ -12,6 +12,7 @@ SOURCES = $(wildcard $(SRCDIR)/*.cpp)
 TARGETS = $(patsubst $(SRCDIR)/%.cpp,$(BINDIR)/%,$(SOURCES))
 TARGETS_DEEP = $(patsubst $(SRCDIR)/%.cpp,$(BINDIR_DEEP)/%,$(SOURCES))
 
+
 all: $(TARGETS)
 
 $(BINDIR)/%: $(SRCDIR)/%.cpp
