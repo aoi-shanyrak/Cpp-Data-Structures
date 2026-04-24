@@ -1,19 +1,22 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstdint>
 #include <cstring>
 #include <ostream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 namespace aoi {
 
+  template <size_t N>
   class BitSet {
     using bitStorage_t = uint64_t;
     static constexpr size_t BITS_PER_WORD = 64;
+    static constexpr size_t WORD_COUNT = (N + BITS_PER_WORD - 1) / BITS_PER_WORD;
+
 
    public:
     class reference {
@@ -41,14 +44,14 @@ namespace aoi {
     };
 
 
-    BitSet() noexcept : bit_count {0} {}
+    BitSet() noexcept { data.fill(0); }
 
-    explicit BitSet(size_t n) : bit_count {n} { data.resize(words_in_bits(n), 0); }
-
-    explicit BitSet(unsigned long long val)
-        : bit_count {static_cast<size_t>(std::bit_width(val))}, data(words_in_bits(bit_count), 0) {
-      if (!data.empty()) data[0] = val;
-      sanitize_tail();
+    explicit BitSet(unsigned long long val) noexcept {
+      data.fill(0);
+      if constexpr (N > 0) {
+        data[0] = val;
+        sanitize_tail();
+      }
     }
 
     explicit BitSet(const std::string& str, size_t pos = 0, size_t n = std::string::npos, char zero = '0',
@@ -56,11 +59,8 @@ namespace aoi {
         : BitSet {} {
       if (pos >= str.size()) throw std::out_of_range("BitSet: Position out of range");
 
-      size_t end = std::min(pos + n, str.size());
-      bit_count = end - pos;
-      data.resize(words_in_bits(bit_count), 0);
-
-      for (size_t i = 0; i < bit_count; ++i) {
+      size_t rlen = std::min({n, str.size() - pos, N});
+      for (size_t i = 0; i < rlen; ++i) {
         char c = str[pos + i];
         if (c == one)
           set(i, true);
@@ -75,8 +75,8 @@ namespace aoi {
     BitSet& operator=(BitSet&& other) noexcept = default;
 
 
-    size_t size() const noexcept { return bit_count; }
-    bool empty() const noexcept { return bit_count == 0; }
+    constexpr size_t size() const noexcept { return N; }
+    constexpr bool empty() const noexcept { return N == 0; }
 
     bool operator[](size_t pos) const noexcept { return (data[pos / BITS_PER_WORD] >> (pos % BITS_PER_WORD)) & 1ULL; }
 
@@ -84,18 +84,18 @@ namespace aoi {
 
 
     bool test(size_t pos) const {
-      if (pos >= bit_count) throw std::out_of_range("BitSet: Position out of range");
+      if (pos >= N) throw std::out_of_range("BitSet: Position out of range");
       return (*this)[pos];
     }
 
     BitSet& set() noexcept {
-      std::fill(data.begin(), data.end(), ~0ULL);
+      data.fill(~0ULL);
       sanitize_tail();
       return *this;
     }
 
     BitSet& reset() noexcept {
-      std::fill(data.begin(), data.end(), 0ULL);
+      data.fill(0);
       return *this;
     }
 
@@ -106,7 +106,7 @@ namespace aoi {
     }
 
     BitSet& set(size_t pos, bool value = true) {
-      if (pos >= bit_count) throw std::out_of_range("BitSet: Position out of range");
+      if (pos >= N) throw std::out_of_range("BitSet: Position out of range");
       if (value)
         data[pos / BITS_PER_WORD] |= (1ULL << (pos % BITS_PER_WORD));
       else
@@ -117,19 +117,18 @@ namespace aoi {
     BitSet& reset(size_t pos) { return set(pos, false); }
 
     BitSet& flip(size_t pos) {
-      if (pos >= bit_count) throw std::out_of_range("BitSet: Position out of range");
+      if (pos >= N) throw std::out_of_range("BitSet: Position out of range");
       data[pos / BITS_PER_WORD] ^= (1ULL << (pos % BITS_PER_WORD));
       return *this;
     }
 
 
     bool all() const noexcept {
-      if (bit_count == 0) return true;
+      if constexpr (N == 0) return true;
       for (size_t i = 0; i < data.size() - 1; ++i) {
         if (data[i] != ~0ULL) return false;
       }
-      size_t tail_bits = bit_count % BITS_PER_WORD;
-      bitStorage_t mask = (tail_bits == 0) ? ~0ULL : (1ULL << tail_bits) - 1;
+      bitStorage_t mask {get_tail_mask()};
       return (data.back() & mask) == mask;
     }
 
@@ -150,34 +149,34 @@ namespace aoi {
 
     std::string to_string(char zero = '0', char one = '1') const {
       std::string result;
-      result.reserve(bit_count);
-      for (size_t i = 0; i < bit_count; ++i) {
+      result.reserve(N);
+      for (size_t i = 0; i < N; ++i) {
         result.push_back((*this)[i] ? one : zero);
       }
       return result;
     }
 
     unsigned long long to_ullong() const {
-      if (bit_count > BITS_PER_WORD) throw std::overflow_error("BitSet: Too large for ullong");
+      if constexpr (N == 0) return 0;
+      if constexpr (N > BITS_PER_WORD)
+        for (size_t i = 1; i < WORD_COUNT; ++i)
+          if (data[i] > 0) throw std::overflow_error("BitSet: Too large for ullong");
       return data.empty() ? 0ULL : data[0];
     }
 
 
     BitSet& operator&=(const BitSet& other) {
-      check_size_match(other);
-      for (size_t i = 0; i < data.size(); ++i) data[i] &= other.data[i];
+      for (size_t i = 0; i < WORD_COUNT; ++i) data[i] &= other.data[i];
       return *this;
     }
 
     BitSet& operator|=(const BitSet& other) {
-      check_size_match(other);
-      for (size_t i = 0; i < data.size(); ++i) data[i] |= other.data[i];
+      for (size_t i = 0; i < WORD_COUNT; ++i) data[i] |= other.data[i];
       return *this;
     }
 
     BitSet& operator^=(const BitSet& other) {
-      check_size_match(other);
-      for (size_t i = 0; i < data.size(); ++i) data[i] ^= other.data[i];
+      for (size_t i = 0; i < WORD_COUNT; ++i) data[i] ^= other.data[i];
       return *this;
     }
 
@@ -190,45 +189,28 @@ namespace aoi {
       return result;
     }
 
-    bool operator==(const BitSet& other) const {
-      check_size_match(other);
-      return data == other.data;
-    }
-
+    bool operator==(const BitSet& other) const { return data == other.data; }
     bool operator!=(const BitSet& other) const { return !(*this == other); }
 
 
-    void swap(BitSet& other) noexcept {
-      std::swap(data, other.data);
-      std::swap(bit_count, other.bit_count);
-    }
-
-
    private:
-    size_t bit_count;
-    std::vector<bitStorage_t> data;
+    std::array<bitStorage_t, WORD_COUNT> data;
 
 
+    static constexpr bitStorage_t get_tail_mask() {
+      constexpr size_t tail_bits {N % BITS_PER_WORD};
+      return (tail_bits == 0) ? ~0ULL : (1ULL << tail_bits) - 1;
+    }
     void sanitize_tail() noexcept {
-      if (bit_count == 0) return;
-      size_t tail_bits = bit_count % BITS_PER_WORD;
-      if (tail_bits > 0) {
-        bitStorage_t mask = (1ULL << tail_bits) - 1;
-        data.back() &= mask;
-      }
+      if constexpr (N > 0) data.back() &= get_tail_mask();
     }
-
-    void check_size_match(const BitSet& other) const {
-      if (bit_count != other.bit_count) throw std::invalid_argument("BitSet: Size mismatch");
-    }
-
-    static size_t words_in_bits(size_t bits) noexcept { return (bits + BITS_PER_WORD - 1) / BITS_PER_WORD; }
   };
 
 
-  inline BitSet& BitSet::operator<<=(size_t shift) {
-    if (bit_count == 0 || shift == 0) return *this;
-    if (shift >= bit_count) {
+  template <size_t N>
+  auto BitSet<N>::operator<<=(size_t shift) -> BitSet& {
+    if (shift == 0) return *this;
+    if (shift >= N) {
       reset();
       return *this;
     }
@@ -237,9 +219,9 @@ namespace aoi {
     size_t bit_shift = shift % BITS_PER_WORD;
 
     if (bit_shift == 0) {
-      for (size_t i = data.size(); i-- > word_shift;) data[i] = data[i - word_shift];
+      for (size_t i = WORD_COUNT; i-- > word_shift;) data[i] = data[i - word_shift];
     } else {
-      for (size_t i = data.size(); i-- > word_shift;) {
+      for (size_t i = WORD_COUNT; i-- > word_shift;) {
         bitStorage_t high = data[i - word_shift];
         bitStorage_t low = (i > word_shift) ? data[i - word_shift - 1] : 0;
         data[i] = (high << bit_shift) | (low >> (BITS_PER_WORD - bit_shift));
@@ -250,9 +232,10 @@ namespace aoi {
     return *this;
   }
 
-  inline BitSet& BitSet::operator>>=(size_t shift) {
-    if (bit_count == 0 || shift == 0) return *this;
-    if (shift >= bit_count) {
+  template <size_t N>
+  auto BitSet<N>::operator>>=(size_t shift) -> BitSet& {
+    if (shift == 0) return *this;
+    if (shift >= N) {
       reset();
       return *this;
     }
@@ -261,12 +244,12 @@ namespace aoi {
     size_t bit_shift = shift % BITS_PER_WORD;
 
     if (bit_shift == 0) {
-      for (size_t i = 0; i + word_shift < data.size(); ++i) data[i] = data[i + word_shift];
+      for (size_t i = 0; i + word_shift < WORD_COUNT; ++i) data[i] = data[i + word_shift];
     } else {
-      for (size_t i = 0; i + word_shift < data.size(); ++i) {
+      for (size_t i = 0; i + word_shift < WORD_COUNT; ++i) {
         bitStorage_t low = data[i + word_shift] >> bit_shift;
         bitStorage_t high =
-            (i + word_shift + 1 < data.size()) ? data[i + word_shift + 1] << (BITS_PER_WORD - bit_shift) : 0;
+            (i + word_shift + 1 < WORD_COUNT) ? data[i + word_shift + 1] << (BITS_PER_WORD - bit_shift) : 0;
         data[i] = low | high;
       }
     }
@@ -276,23 +259,28 @@ namespace aoi {
   }
 
 
-  inline BitSet operator&(const BitSet& a, const BitSet& b) {
-    return BitSet(a) &= b;
+  template <size_t N>
+  inline BitSet<N> operator&(const BitSet<N>& a, const BitSet<N>& b) {
+    return BitSet<N>(a) &= b;
   }
-  inline BitSet operator|(const BitSet& a, const BitSet& b) {
-    return BitSet(a) |= b;
+  template <size_t N>
+  inline BitSet<N> operator|(const BitSet<N>& a, const BitSet<N>& b) {
+    return BitSet<N>(a) |= b;
   }
-  inline BitSet operator^(const BitSet& a, const BitSet& b) {
-    return BitSet(a) ^= b;
+  template <size_t N>
+  inline BitSet<N> operator^(const BitSet<N>& a, const BitSet<N>& b) {
+    return BitSet<N>(a) ^= b;
   }
-  inline BitSet operator<<(const BitSet& a, size_t shift) {
-    return BitSet(a) <<= shift;
+  template <size_t N>
+  inline BitSet<N> operator<<(const BitSet<N>& a, size_t shift) {
+    return BitSet<N>(a) <<= shift;
   }
-  inline BitSet operator>>(const BitSet& a, size_t shift) {
-    return BitSet(a) >>= shift;
+  template <size_t N>
+  inline BitSet<N> operator>>(const BitSet<N>& a, size_t shift) {
+    return BitSet<N>(a) >>= shift;
   }
-  inline std::ostream& operator<<(std::ostream& os, const BitSet& bs) {
+  template <size_t N>
+  inline std::ostream& operator<<(std::ostream& os, const BitSet<N>& bs) {
     return os << bs.to_string();
   }
-
 }
