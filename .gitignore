@@ -1,2 +1,4 @@
 bin
 painting
+compile_commands.json
+.cache
