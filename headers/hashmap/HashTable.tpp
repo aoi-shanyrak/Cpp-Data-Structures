@@ -6,10 +6,13 @@
 #include <optional>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
+
 namespace aoi {
+
 
   namespace Details {
 
@@ -29,6 +32,7 @@ namespace aoi {
     }
 
   }
+
 
   namespace Hashing {
 
@@ -67,6 +71,7 @@ namespace aoi {
     };
 
   }
+
 
   namespace Base {
 
@@ -191,5 +196,9 @@ namespace aoi {
     }
 
   }
+
+
+  template <typename T>
+  using StringHashMap = Base::HashTableCuckoo<std::string, T, Hashing::StringHashFamily<std::string>>;
 
 }
