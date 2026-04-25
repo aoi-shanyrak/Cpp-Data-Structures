@@ -1,5 +1,5 @@
 CXX = g++
-BASE_CXXFLAGS = -std=c++20 -Wall -Wextra -I.
+BASE_CXXFLAGS = -std=c++23 -Wall -Wextra -I.
 SANITIZER_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g
 TEST_DEFINE ?=
 CXXFLAGS = $(BASE_CXXFLAGS) $(SANITIZER_FLAGS) $(TEST_DEFINE)

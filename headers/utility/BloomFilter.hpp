@@ -36,12 +36,12 @@ namespace aoi {
 
     template <std::convertible_to<T> UT, size_t... I>
     void setBits(UT&& item, std::index_sequence<I...>) {
-      (bits.set(hasher(item, I) % N), ...);
+      (bits.set(hasher(item, I)), ...);
     }
 
     template <std::convertible_to<T> UT, size_t... I>
     bool checkBits(UT&& item, std::index_sequence<I...>) {
-      return (bits.test(hasher(item, I) % N) && ...);
+      return (bits.test(hasher(item, I)) && ...);
     }
   };
 
@@ -56,12 +56,6 @@ namespace aoi {
       return static_cast<size_t>(std::ceil(K * S * std::numbers::log2e));
     }
 
-    template <typename T, size_t S, size_t K, typename HashFamily>
-    using BloomFilterHelper = BloomFilter<T, K, calcN(K, S), HashFamily>;
-
   }
-
-  template <typename T, size_t S, double E, typename HashFamily>
-  using BloomFilterFor = Detail::BloomFilterHelper<T, S, Detail::calcK(E), HashFamily>;
 
 }

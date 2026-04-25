@@ -7,7 +7,6 @@
 #include <iterator>
 #include <stack>
 #include <stdexcept>
-#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -93,6 +92,7 @@ namespace aoi {
     RedBlackBST(RedBlackBST&& other) noexcept
         : data {std::move(other.data)}, freeList {std::move(other.freeList)}, root {other.root},
           valid_iterators_counter {other.valid_iterators_counter}, comp {std::move(other.comp)} {
+      other.data = {};
       other.root = nullindex;
       other.freeList = {};
       other.valid_iterators_counter = 0;
@@ -108,6 +108,7 @@ namespace aoi {
         valid_iterators_counter = other.valid_iterators_counter;
         comp = std::move(other.comp);
 
+        other.data = {};
         other.root = nullindex;
         other.freeList = {};
         other.valid_iterators_counter = 0;
