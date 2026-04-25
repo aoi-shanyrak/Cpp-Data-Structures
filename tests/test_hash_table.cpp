@@ -100,6 +100,76 @@ namespace {
     std::cout << "passed\n";
   }
 
+  void test_string_hash_map_alias() {
+    std::cout << "Testing StringHashMap alias (std::string)... ";
+
+    StringHashMap<int> map {11};
+
+    map.insert("C++", 20);
+    map.insert("Rust", 2010);
+    map.insert("Python", 1991);
+
+    auto* p = map.find("C++");
+    assert(p != nullptr && p->second == 20);
+    assert(map.find("Java") == nullptr);
+
+    std::cout << "passed\n";
+  }
+
+  void test_remove_functionality() {
+    std::cout << "Testing HashTable remove... ";
+
+    IntTable table {13};
+    table.insert(100, "hundred");
+    table.insert(200, "two-hundred");
+
+    assert(table.find(100) != nullptr);
+
+    table.remove(100);
+    assert(table.find(100) == nullptr);
+    assert(table.find(200) != nullptr);
+
+    table.remove(999);
+
+    std::cout << "passed\n";
+  }
+
+  void test_large_scale_rehash() {
+    std::cout << "Testing Large scale insertions (forces multiple rehashes)... ";
+
+    StringHashMap<size_t> map {5};
+    const size_t count = 500;
+
+    for (size_t i = 0; i < count; ++i) {
+      map.insert("key_" + std::to_string(i), i);
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+      auto* p = map.find("key_" + std::to_string(i));
+      assert(p != nullptr && p->second == i);
+    }
+
+    std::cout << "passed\n";
+  }
+
+  void test_clear_functionality() {
+    std::cout << "Testing HashTable clear... ";
+
+    IntTable table {11};
+    table.insert(1, "one");
+    table.insert(2, "two");
+
+    table.clear();
+
+    assert(table.find(1) == nullptr);
+    assert(table.find(2) == nullptr);
+
+    table.insert(3, "three");
+    assert(table.find(3) != nullptr);
+
+    std::cout << "passed\n";
+  }
+
 }  // namespace
 
 int main() {
@@ -109,6 +179,10 @@ int main() {
     test_insert_find_update();
     test_move_constructor();
     test_rehash_preserves_values();
+    test_string_hash_map_alias();
+    test_remove_functionality();
+    test_clear_functionality();
+    test_large_scale_rehash();
 
     std::cout << "\n=== All HashTable tests passed! ===\n";
     return 0;

@@ -85,11 +85,7 @@ namespace aoi {
       using Handle = Entry*;
 
 
-      HashTableCuckoo(size_t n = default_cap) : data {} {
-        size_t cap {Details::next_prime(n)};
-        data.resize(cap);
-        hasher = HashFamily {cap, N};
-      }
+      HashTableCuckoo(size_t n = default_cap) : data {Details::next_prime(n)}, hasher {data.size(), N} {}
       template <std::convertible_to<HashFamily> U_HashFamily>
       explicit HashTableCuckoo(U_HashFamily&& hasher) : data {}, hasher {std::forward<U_HashFamily>(hasher)} {}
 
@@ -98,7 +94,6 @@ namespace aoi {
 
       HashTableCuckoo(HashTableCuckoo&& other) : data {std::move(other.data)}, hasher {std::move(other.hasher)} {
         other.data = {};
-        other.hasher = {};
       }
       HashTableCuckoo& operator=(HashTableCuckoo&& other) {
         if (this != other) {
@@ -106,11 +101,12 @@ namespace aoi {
           data = std::move(other.data);
           hasher = std::move(other.hasher);
           other.data = {};
-          other.hasher = {};
         }
         return *this;
       }
       ~HashTableCuckoo() { clear(); }
+
+      void clear() noexcept { data.clear(); }
 
 
       template <std::convertible_to<K> UK, std::convertible_to<T> UT>
@@ -119,7 +115,7 @@ namespace aoi {
 
       template <std::convertible_to<K> UK>
       void remove(UK&& key) {
-        Handle slot {find_slot(std::forward<UK>(key))};
+        auto* slot {find_slot(std::forward<UK>(key))};
         if (slot == nullptr) return;
         slot->reset();
       }
@@ -129,12 +125,6 @@ namespace aoi {
       Handle find(UK&& key) {
         auto* slot {find_slot(std::forward<UK>(key))};
         return (slot) ? &(**slot) : nullptr;
-      }
-
-
-      void clear() noexcept {
-        data.clear();
-        hasher = {};
       }
 
 
