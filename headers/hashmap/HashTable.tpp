@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cmath>
 #include <concepts>
 #include <optional>
 #include <random>
@@ -112,17 +113,17 @@ namespace aoi {
 
 
       template <std::convertible_to<K> UK>
-      T& remove(UK&& key);
+      void remove(UK&& key) {
+        Handle slot {find_slot(std::forward<UK>(key))};
+        if (slot == nullptr) return;
+        slot->reset();
+      }
 
 
-      template <typename Self, std::convertible_to<K> UK>
-      auto& find(this Self&& self, UK&& key) {
-        for (size_t i = 0; i < N; ++i) {
-          size_t idx {self.hasher.hash(key, i)};
-          auto& slot {self.data[idx]};
-
-          if (slot.has_value() && slot.first == key) return slot.second;
-        }
+      template <std::convertible_to<K> UK>
+      Handle find(UK&& key) {
+        auto* slot {find_slot(std::forward<UK>(key))};
+        return (slot) ? &(**slot) : nullptr;
       }
 
 
@@ -135,7 +136,59 @@ namespace aoi {
      private:
       Container<std::optional<Entry>> data;
       HashFamily hasher;
+
+
+      template <std::convertible_to<K> UK>
+      std::optional<Entry>* find_slot(UK&& key) {
+        for (size_t i = 0; i < N; ++i) {
+          size_t idx {hasher.hash(key, i)};
+          auto& slot {data[idx]};
+          if (slot.has_value() && slot->first == key) return &slot;
+        }
+        return nullptr;
+      }
+
+      constexpr unsigned long long int max_loop() { return std::log2(data.size()); }
+
+      void rehash() {
+        size_t new_size {Details::next_prime(data.size() * 2)};
+        auto old_data {std::move(data)};
+
+        hasher = HashFamily {new_size, N};
+
+        data.resize(new_size);
+        for (auto& slot : old_data)
+          if (slot.has_value()) insert(std::move(slot->first), std::move(slot->second));
+      }
     };
+
+
+    template <typename K, typename T, typename HashFamily, template <typename...> typename Container, size_t N>
+    template <std::convertible_to<K> UK, std::convertible_to<T> UT>
+    void HashTableCuckoo<K, T, HashFamily, Container, N>::insert(UK&& key, UT&& value) {
+      if (auto pair = find(std::forward<UK>(key))) {
+        pair->second = std::forward<UT>(value);
+        return;
+      }
+
+      Entry current {std::forward<UK>(key), std::forward<UT>(value)};
+      size_t limit {max_loop()};
+
+      for (size_t i = 0; i < limit; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+          size_t idx {hasher.hash(current.first, j)};
+          auto& slot {data[idx]};
+          if (!slot.has_value()) {
+            slot = std::move(current);
+            return;
+          }
+          std::swap(*slot, current);
+        }
+      }
+      rehash();
+
+      insert(std::move(current.first), std::move(current.second));
+    }
 
   }
 
